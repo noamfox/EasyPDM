@@ -4,6 +4,9 @@
 
 [<img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" width="136">](https://buymeacoffee.com/easypdm)
 
+▶️ **Videoserie auf YouTube** (auf Englisch, [Playlist](https://www.youtube.com/playlist?list=PLe2vSF7-ieUA)): [1. Wozu PDM und was EasyPDM ist](https://youtu.be/OaqyJQCHkt4) ·
+[2. Installation — Windows, Docker oder Linux](https://youtu.be/ZwAWCJN9tWg)
+
 EasyPDM ist der Ort, an dem Ihre Teile und Baugruppen eine einzige, für das ganze Team
 gemeinsame Ordnung erhalten: Jedes Element hat seine eigene Nummer, Revision, Status und
 Änderungshistorie, und Baugruppen erhalten eine fertige Stückliste (BOM). Schluss mit

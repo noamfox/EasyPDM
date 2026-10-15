@@ -4,6 +4,9 @@
 
 [<img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" width="136">](https://buymeacoffee.com/easypdm)
 
+▶️ **Video series on YouTube** ([playlist](https://www.youtube.com/playlist?list=PLe2vSF7-ieUA)): [1. What a PDM is and why EasyPDM](https://youtu.be/OaqyJQCHkt4) ·
+[2. Installation — Windows, Docker or Linux](https://youtu.be/ZwAWCJN9tWg)
+
 EasyPDM is where your Parts and Assemblies get one, shared order for the whole team:
 every item has its own number, revision, status and change history, and assemblies get
 a ready-made bill of materials (BOM). No more `bracket_v3_FINAL_FOR_REAL.SLDPRT` on a
