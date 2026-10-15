@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useLanguage } from "@/i18n/use-language"
+import { cn } from "@/lib/utils"
 
 // Administrator zawsze widzi/może przeglądać wszystkie projekty niezależnie od przypisań —
 // nie ma sensu dawać mu tu checkboxa, który i tak nic by nie zmienił, więc lista po prawej
@@ -36,12 +37,6 @@ function ProjectAccessView({ users }: { users: ManagedUser[] }) {
   useEffect(() => {
     refetch()
   }, [refetch])
-
-  useEffect(() => {
-    if (selectedProjectId === null && projects.length > 0) {
-      setSelectedProjectId(projects[0].id)
-    }
-  }, [projects, selectedProjectId])
 
   const projectName = (id: string) => projects.find((p) => p.id === id)?.name ?? id
 
@@ -74,8 +69,12 @@ function ProjectAccessView({ users }: { users: ManagedUser[] }) {
         <Hint>{t("projectAccess.noProjects")}</Hint>
       ) : (
         <div className="mt-2 flex flex-col gap-2">
+          {/* Bez domyślnego wyboru: dopóki administrator sam nie wybierze projektu, lista
+              użytkowników jest wyszarzona — wcześniej checkboxy po cichu dotyczyły pierwszego
+              projektu z listy. null (nie undefined) trzyma Select jako kontrolowany od pierwszego
+              renderu; undefined robił go niekontrolowanym i późniejsza wartość była ignorowana. */}
           <Select
-            value={selectedProjectId ?? undefined}
+            value={selectedProjectId}
             onValueChange={(v) => setSelectedProjectId(v)}
           >
             <SelectTrigger className="w-full">
@@ -92,16 +91,25 @@ function ProjectAccessView({ users }: { users: ManagedUser[] }) {
             </SelectContent>
           </Select>
 
-          <div className="rounded-lg bg-muted/40 p-1.5">
+          <div
+            className={cn("rounded-lg bg-muted/40 p-1.5", !selectedProjectId && "opacity-50")}
+            aria-disabled={!selectedProjectId}
+          >
             {assignableUsers.length === 0 ? (
               <Hint>{t("projectAccess.noUsers")}</Hint>
             ) : (
               <ul className="flex flex-col gap-0.5">
                 {assignableUsers.map((u) => (
                   <li key={u.id}>
-                    <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent">
+                    <label
+                      className={cn(
+                        "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm",
+                        selectedProjectId ? "cursor-pointer hover:bg-accent" : "cursor-not-allowed"
+                      )}
+                    >
                       <input
                         type="checkbox"
+                        disabled={!selectedProjectId}
                         checked={assignedUserIds.has(u.id)}
                         onChange={(e) => toggle(u.id, e.target.checked)}
                         className="size-3.5 shrink-0 accent-primary"
