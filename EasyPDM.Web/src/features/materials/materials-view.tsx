@@ -17,6 +17,7 @@ import { FormError } from "@/components/ui/form-error"
 import { Hint } from "@/components/ui/hint"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { SuggestInput } from "@/components/ui/suggest-input"
 import {
   Select,
   SelectContent,
@@ -35,11 +36,6 @@ function MaterialsView() {
 
   const existingGroups = useMemo(
     () => Array.from(new Set(materials.map((m) => m.group).filter((g): g is string => !!g))).sort(),
-    [materials]
-  )
-  const existingSubgroups = useMemo(
-    () =>
-      Array.from(new Set(materials.map((m) => m.subgroup).filter((s): s is string => !!s))).sort(),
     [materials]
   )
   // Podpowiedzi podgrup do filtra zawężone do wybranej grupy (jeśli jest wybrana) — nie ma
@@ -91,8 +87,7 @@ function MaterialsView() {
             trigger={<Button>{t("material.addButton")}</Button>}
             title={t("material.addTitle")}
             confirmLabel={t("common.add")}
-            existingGroups={existingGroups}
-            existingSubgroups={existingSubgroups}
+            materials={materials}
             onSubmit={async (body) => {
               await api.addMaterial(body)
               await refetch()
@@ -178,8 +173,7 @@ function MaterialsView() {
                     title={t("material.editTitle")}
                     confirmLabel={t("common.save")}
                     initial={m}
-                    existingGroups={existingGroups}
-                    existingSubgroups={existingSubgroups}
+                    materials={materials}
                     onSubmit={async (body) => {
                       await api.updateMaterial(m.id, body)
                       await refetch()
@@ -226,16 +220,14 @@ function MaterialDialog({
   title,
   confirmLabel,
   initial,
-  existingGroups,
-  existingSubgroups,
+  materials,
   onSubmit,
 }: {
   trigger: ReactElement
   title: string
   confirmLabel: string
   initial?: Material
-  existingGroups: string[]
-  existingSubgroups: string[]
+  materials: Material[]
   onSubmit: (body: { name: string; group: string | null; subgroup: string | null }) => Promise<void>
 }) {
   const { t } = useLanguage()
@@ -244,6 +236,19 @@ function MaterialDialog({
   const [group, setGroup] = useState(initial?.group ?? "")
   const [subgroup, setSubgroup] = useState(initial?.subgroup ?? "")
   const [error, setError] = useState("")
+
+  const existingGroups = useMemo(
+    () => Array.from(new Set(materials.map((m) => m.group).filter((g): g is string => !!g))).sort(),
+    [materials]
+  )
+  // Podgrupy zawężone do wpisanej grupy, jeśli taka już istnieje — żeby nie podpowiadać
+  // podgrupy z innej grupy. Przy nowej (jeszcze nieistniejącej) grupie pokazujemy wszystkie,
+  // bo te same podgrupy (np. "Pręty") często powtarzają się w różnych grupach.
+  const existingSubgroups = useMemo(() => {
+    const g = group.trim()
+    const inGroup = existingGroups.includes(g) ? materials.filter((m) => m.group === g) : materials
+    return Array.from(new Set(inGroup.map((m) => m.subgroup).filter((s): s is string => !!s))).sort()
+  }, [materials, existingGroups, group])
 
   // Ten sam komponent obsługuje dodawanie i edycję wielu wierszy naraz (jedna instancja na
   // materiał) — jeśli "initial" się zmieni (np. po odświeżeniu listy po zapisie), pola mają
@@ -305,32 +310,24 @@ function MaterialDialog({
           />
 
           <Label htmlFor="material-group">{t("material.groupOptionalLabel")}</Label>
-          <Input
+          <SuggestInput
             id="material-group"
             value={group}
-            onChange={(e) => setGroup(e.target.value)}
-            list="material-group-options"
+            onChange={setGroup}
+            suggestions={existingGroups}
             placeholder={t("material.groupPlaceholder")}
+            newValueHint={t("material.newGroupHint")}
           />
-          <datalist id="material-group-options">
-            {existingGroups.map((g) => (
-              <option key={g} value={g} />
-            ))}
-          </datalist>
 
           <Label htmlFor="material-subgroup">{t("material.subgroupOptionalLabel")}</Label>
-          <Input
+          <SuggestInput
             id="material-subgroup"
             value={subgroup}
-            onChange={(e) => setSubgroup(e.target.value)}
-            list="material-subgroup-options"
+            onChange={setSubgroup}
+            suggestions={existingSubgroups}
             placeholder={t("material.subgroupPlaceholder")}
+            newValueHint={t("material.newSubgroupHint")}
           />
-          <datalist id="material-subgroup-options">
-            {existingSubgroups.map((s) => (
-              <option key={s} value={s} />
-            ))}
-          </datalist>
 
           <Hint>{t("material.groupSubgroupHint")}</Hint>
 
