@@ -206,6 +206,16 @@ dwie osobne.
      ten jeden załącznik jest **cicho pomijany**, nie przerywa ani nie cofa reszty wysyłki
      (plik `.FCStd` w PDM jest już bezpiecznie zapisany w tym momencie).
 
+6. **Na koniec zwykły zapis (nie „Zapisz jako”) wszystkich otwartych dokumentów** —
+   złożenia i każdej Części/pod-złożenia otwartego w tym biegu. Dzieje się to niezależnie
+   od tego, jak bieg się kończy: po sukcesie, po anulowaniu w przeglądarce, po odmowie
+   nowej rewizji albo po błędzie w połowie. W tym momencie część komponentów może mieć już
+   nowe nazwy na dysku, a bez tego zapisu plik złożenia wskazywał stare, dopóki nie
+   nacisnęło się Ctrl+S ręcznie (zgłoszone z praktyki). Zapis jest powtarzany do trzech
+   razy, dopóki FreeCAD oznacza dokument jako zmieniony, bo solver złożeń i ścieżki
+   odwołań potrafią „dotknąć” dokument zaraz po zapisie. Plik, którego nie da się zapisać,
+   nie jest już pomijany po cichu: trafia do ostrzeżenia i do Report View.
+
 ## Automatyczne wykrywanie złożenia
 
 Jeśli aktywny dokument linkuje (`App::Link` — standardowy sposób budowania złożeń

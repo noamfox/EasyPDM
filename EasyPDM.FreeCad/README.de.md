@@ -235,6 +235,18 @@ getrennte.
      rückgängig (die `.FCStd`-Datei ist zu diesem Zeitpunkt bereits sicher im PDM
      gespeichert).
 
+6. **Zum Schluss ein normales Speichern (nicht „Speichern unter“) aller geöffneten
+   Dokumente** — der Baugruppe und jedes in diesem Lauf geöffneten Teils/jeder
+   Unterbaugruppe. Das geschieht unabhängig davon, wie der Lauf endet: nach Erfolg, nach
+   Abbruch im Browser, nach Ablehnung einer neuen Revision oder nach einem Fehler mittendrin.
+   Zu diesem Zeitpunkt können einige Komponenten auf der Festplatte schon neue Namen haben,
+   und ohne dieses Speichern verwies die Baugruppendatei weiter auf die alten, bis man selbst
+   Strg+S drückte (aus der Praxis gemeldet). Das Speichern wird bis zu dreimal wiederholt,
+   solange FreeCAD ein Dokument als geändert markiert, weil der Baugruppen-Solver und
+   Verknüpfungspfade ein Dokument direkt nach dem Speichern erneut berühren können. Eine
+   Datei, die sich nicht speichern lässt, wird nicht mehr stillschweigend übergangen: Sie
+   erscheint in einer Warnung und in der Report View.
+
 ## Automatische Baugruppenerkennung
 
 Wenn das aktive Dokument über `App::Link` (die Standardmethode zum Aufbau von Baugruppen

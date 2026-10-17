@@ -218,6 +218,16 @@ operation**, not two separate ones.
      the rest of the upload (the `.FCStd` file is already safely saved in the PDM at that
      point).
 
+6. **Finally, a plain Save (not Save As) of every open document** — the assembly and every
+   Part/sub-assembly opened during this run. It happens however the run ends: after
+   success, after cancelling in the browser, after declining a new revision, or after an
+   error halfway through. By then some components may already have their new names on
+   disk, and without this save the assembly file kept pointing at the old ones until you
+   pressed Ctrl+S yourself (reported in practice). The save repeats up to three times
+   while FreeCAD still marks a document as modified, because the Assembly solver and link
+   paths can touch a document again right after it is saved. A file that cannot be saved
+   is no longer skipped silently: it is listed in a warning, and in the Report View.
+
 ## Automatic assembly detection
 
 If the active document links (`App::Link` — the standard way of building assemblies in

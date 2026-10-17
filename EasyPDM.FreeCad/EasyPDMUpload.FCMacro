@@ -298,6 +298,10 @@ TRANSLATIONS = {
         "no_active_document": "Brak otwartego dokumentu.",
         "document_not_saved": "Dokument nie jest jeszcze zapisany — wskaż, gdzie go zapisać.",
         "save_failed": "Nie udało się zapisać dokumentu: {error}",
+        "final_save_failed": (
+            "Tych plików nie udało się zapisać lokalnie. Odwołania do nowych nazw są tylko "
+            "w otwartym dokumencie — zapisz je ręcznie (Ctrl+S):\n{lines}"
+        ),
         "cancelled_upload": "Przerwano — anulowano wysyłkę.",
         "nothing_sent": "Anulowano — nic nie zostało wysłane.",
         "link_subitem_failed": "Nie udało się podpiąć jednego z podelementów pod główny element: {error}",
@@ -400,6 +404,10 @@ TRANSLATIONS = {
         "no_active_document": "No document is open.",
         "document_not_saved": "The document has not been saved yet — choose where to save it.",
         "save_failed": "Failed to save the document: {error}",
+        "final_save_failed": (
+            "These files could not be saved locally. References to the new names exist only "
+            "in the open document — save them by hand (Ctrl+S):\n{lines}"
+        ),
         "cancelled_upload": "Cancelled — the upload was aborted.",
         "nothing_sent": "Cancelled — nothing was sent.",
         "link_subitem_failed": "Failed to link one of the sub-items under the main item: {error}",
@@ -505,6 +513,10 @@ TRANSLATIONS = {
         "no_active_document": "Kein Dokument geöffnet.",
         "document_not_saved": "Das Dokument wurde noch nicht gespeichert — wählen Sie einen Speicherort.",
         "save_failed": "Das Dokument konnte nicht gespeichert werden: {error}",
+        "final_save_failed": (
+            "Diese Dateien konnten lokal nicht gespeichert werden. Verweise auf die neuen Namen gibt es nur "
+            "im geöffneten Dokument — bitte von Hand speichern (Strg+S):\n{lines}"
+        ),
         "cancelled_upload": "Abgebrochen — der Upload wurde abgebrochen.",
         "nothing_sent": "Abgebrochen — es wurde nichts gesendet.",
         "link_subitem_failed": "Eines der Unterelemente konnte nicht unter dem Hauptelement verknüpft werden: {error}",
@@ -2799,6 +2811,63 @@ def run():
         return
     target_folder = folder_dialog.result_folder
 
+    # Od tego miejsca pliki na dysku mogą już zmieniać nazwy (Save As komponentów w
+    # process_assembly_tree), więc zwykły zapis na koniec musi przyjść NIEZALEŻNIE od tego,
+    # jak bieg się skończy -- także po anulowaniu w przeglądarce, odmowie nowej rewizji albo
+    # wyjątku w połowie. Wcześniej był tylko na końcu udanej ścieżki: złożenie w pamięci
+    # wskazywało już nowe nazwy części, a plik na dysku stare, aż do ręcznego Ctrl+S.
+    try:
+        _send_and_link(doc, target_folder)
+    finally:
+        _save_open_documents()
+
+
+def _save_open_documents():
+    """Zwykły zapis (nie Save As) wszystkich otwartych, zapisanych już na dysku dokumentów:
+    złożenia i każdej Części/pod-złożenia otwartego w tej sesji przez process_assembly_tree.
+
+    Wszystkie, a nie tylko top_doc: FreeCAD potrafi oznaczyć dokument jako zmieniony
+    ("gwiazdka") dopiero PO naszym Save As -- solver złożeń workbencha Assembly i
+    aktualizacja ścieżek w App::Link dzieją się przy recompute, więc samo recompute
+    top_doc w praktyce nie wystarczało (potwierdzone przez użytkownika). Z tego samego
+    powodu zapis jest powtarzany: pierwsze przejście zapisuje WSZYSTKIE dokumenty bez
+    pytania o flagę zmian (tak jak dotąd -- gdyby flaga kiedyś skłamała, nie tracimy zapisu,
+    który działał), kolejne dwa już tylko te, które FreeCAD nadal oznacza jako zmienione,
+    bo pierwszy zapis potrafi sam wywołać kolejne "dotknięcie".
+
+    Błąd zapisu jednego dokumentu nie blokuje pozostałych, ale już NIE jest połykany po
+    cichu: lista nieudanych ląduje w Report View i w oknie, bo bez tego lokalny plik
+    zostaje z odwołaniami do starych nazw, a nikt się o tym nie dowiaduje."""
+    import FreeCADGui as Gui
+
+    def is_modified(d):
+        gui_doc = Gui.getDocument(d.Name) if App.GuiUp else None
+        return bool(getattr(gui_doc, "Modified", True))
+
+    failed = {}
+    for attempt in range(3):
+        pending = [
+            d for d in App.listDocuments().values() if d.FileName and (attempt == 0 or is_modified(d))
+        ]
+        if not pending:
+            break
+        for d in pending:
+            try:
+                d.recompute()
+                d.save()
+                failed.pop(d.FileName, None)
+            except Exception as e:
+                failed[d.FileName] = str(e)
+                App.Console.PrintMessage(f"EasyPDM: zapis '{d.FileName}' nie powiodl sie: {e}\n")
+
+    if failed:
+        lines = "\n".join(f"- {os.path.basename(path)}: {err}" for path, err in failed.items())
+        QtWidgets.QMessageBox.warning(None, t("pdm_title"), t("final_save_failed", lines=lines))
+
+
+def _send_and_link(doc, target_folder):
+    """Właściwa wysyłka: drzewo złożenia, dokument główny i relacje BOM. Wydzielone z run(),
+    żeby run() mógł objąć ją try/finally z zapisem lokalnych plików na końcu."""
     # Eksport STEP/PDF nie jest już nigdzie wyborem w samym makrze -- decydują o tym dwa
     # niezależne checkboxy w przeglądarce, ZA KAŻDYM RAZEM gdy przeglądarka pośredniczy:
     # dla głównego dokumentu (Krok 2 niżej) i, od teraz, TAKŻE dla każdego automatycznie
@@ -2860,19 +2929,6 @@ def run():
                 api_patch_json(f"/items/{child_item_id}/visibility", {"showInTree": False})
             except Exception:
                 pass
-
-    # Mimo że doc już przeszedł przez _rename_and_upload (Label + saveAs), FreeCAD potrafi
-    # oznaczyć dokument jako "dotknięty" (gwiazdka przy nazwie) PO tym zapisie — recompute
-    # samego top_doc nie wystarczył w praktyce (potwierdzone przez użytkownika), więc
-    # przelatujemy po WSZYSTKICH otwartych dokumentach (złożenie + wszystkie linkowane
-    # Części/pod-złożenia otwarte w tej samej sesji przez process_assembly_tree) — cicho
-    # ignorując błędy pojedynczego dokumentu, żeby jeden nieudany zapis nie zablokował reszty.
-    for open_doc in App.listDocuments().values():
-        try:
-            open_doc.recompute()
-            open_doc.save()
-        except Exception:
-            pass
 
     if info.get("localRenamed"):
         local_line = t("local_renamed_line", path=doc.FileName)
