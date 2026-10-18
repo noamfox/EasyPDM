@@ -2218,6 +2218,34 @@ class TargetFolderDialog(QtWidgets.QDialog):
         self.accept()
 
 
+def _main_window():
+    """Główne okno FreeCAD jako rodzic dla pytań makra (None bez GUI)."""
+    try:
+        import FreeCADGui as Gui
+
+        return Gui.getMainWindow()
+    except Exception:
+        return None
+
+
+def _ask_yes_no(text, default_yes):
+    """Pytanie Tak/Nie, które zawsze leży NAD oknem FreeCAD.
+
+    QMessageBox.question(None, ...) tworzy osobne okno najwyższego poziomu, a KWin pod
+    Waylandem (zgłoszone na CachyOS) potrafi położyć je POD głównym oknem FreeCAD, gdy to
+    okno właśnie się aktywowało -- a tuż przed pytaniami o STEP/PDF makro zapisuje plik i
+    robi zrzut modelu, co aktywuje widok 3D. Okno z rodzicem jest dla menedżera okien
+    "przejściowe" (transient) i musi leżeć nad rodzicem, więc nie ma jak schować się pod
+    spód; raise_/activateWindow dokładają jeszcze prośbę o fokus."""
+    buttons = QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No
+    box = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Question, t("pdm_title"), text, buttons, _main_window())
+    box.setDefaultButton(QtWidgets.QMessageBox.Yes if default_yes else QtWidgets.QMessageBox.No)
+    box.show()
+    box.raise_()
+    box.activateWindow()
+    return box.exec() == QtWidgets.QMessageBox.Yes
+
+
 class NewRevisionDialog(QtWidgets.QDialog):
     """Pytanie o stworzenie nowej rewizji elementu o statusie "Wydany", z opcjonalnym
     komentarzem opisującym zmianę — ta sama treść, którą zapisuje aplikacja webowa."""
@@ -2363,16 +2391,12 @@ def submit_via_browser(doc, target_folder):
     # całości, tylko spada do zwykłego formularza w przeglądarce poniżej, gdzie to samo
     # dopasowanie i tak zostaje podpowiedziane w wyszukiwarce "Dogranie do istniejącego").
     if matched:
-        confirm = QtWidgets.QMessageBox.question(
-            None,
-            t("pdm_title"),
+        if _ask_yes_no(
             t("already_linked_confirm", number=matched.get("itemNumber"), name=matched.get("fileName")),
-            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
-            QtWidgets.QMessageBox.Yes,
-        )
-        if confirm == QtWidgets.QMessageBox.Yes:
+            default_yes=True,
+        ):
             def confirm_new_revision():
-                dlg = NewRevisionDialog()
+                dlg = NewRevisionDialog(_main_window())
                 if dlg.exec() != QtWidgets.QDialog.Accepted:
                     return None
                 return dlg.comment_text()
@@ -2394,17 +2418,9 @@ def submit_via_browser(doc, target_folder):
             if result is None:
                 return None
 
-            if QtWidgets.QMessageBox.question(
-                None, t("pdm_title"), t("export_step_prompt"),
-                QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
-                QtWidgets.QMessageBox.Yes,
-            ) == QtWidgets.QMessageBox.Yes:
+            if _ask_yes_no(t("export_step_prompt"), default_yes=True):
                 _upload_step_attachment(doc, matched["id"])
-            if QtWidgets.QMessageBox.question(
-                None, t("pdm_title"), t("export_pdf_prompt"),
-                QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
-                QtWidgets.QMessageBox.No,
-            ) == QtWidgets.QMessageBox.Yes:
+            if _ask_yes_no(t("export_pdf_prompt"), default_yes=False):
                 _upload_pdf_attachment(doc, matched["id"])
 
             return result
@@ -2435,7 +2451,7 @@ def submit_via_browser(doc, target_folder):
 
     if ticket_data.get("existing"):
         def confirm_new_revision():
-            dlg = NewRevisionDialog()
+            dlg = NewRevisionDialog(_main_window())
             if dlg.exec() != QtWidgets.QDialog.Accepted:
                 return None
             return dlg.comment_text()
@@ -2481,11 +2497,7 @@ def sync_stale_children(parent_item_id, local_child_ids):
         return
 
     lines = "\n".join(f"- {c.get('itemNumber')}({c.get('fileName')})" for c in stale)
-    choice = QtWidgets.QMessageBox.question(
-        None, t("pdm_title"), t("stale_children_confirm", count=len(stale), lines=lines),
-        QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No, QtWidgets.QMessageBox.No,
-    )
-    if choice != QtWidgets.QMessageBox.Yes:
+    if not _ask_yes_no(t("stale_children_confirm", count=len(stale), lines=lines), default_yes=False):
         return
 
     for c in stale:
@@ -2674,7 +2686,7 @@ def process_assembly_tree(top_doc, target_folder=None):
             try:
                 if ticket_data.get("existing"):
                     def confirm_new_revision():
-                        rev_dlg = NewRevisionDialog()
+                        rev_dlg = NewRevisionDialog(_main_window())
                         if rev_dlg.exec() != QtWidgets.QDialog.Accepted:
                             return None
                         return rev_dlg.comment_text()
