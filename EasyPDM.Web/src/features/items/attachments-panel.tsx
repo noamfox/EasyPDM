@@ -83,6 +83,13 @@ function RoleSlot({
             {attachment.fileName}
           </a>
           <div className="flex shrink-0 items-center gap-1">
+            {/* Data i rozmiar jak przy plikach CAD: nowy STEP/PDF zastępuje poprzedni pod
+                tą samą nazwą, więc bez daty nie widać, czy wysyłka go faktycznie nadpisała. */}
+            <span className="text-muted-foreground">
+              {formatUploadedAt(attachment.uploadedAt)}
+              {attachment.uploadedAt && attachment.fileSize !== null && " · "}
+              {formatSize(attachment.fileSize)}
+            </span>
             <Button size="icon-xs" variant="ghost" onClick={onPreview} aria-label={t("common.preview")}>
               <Eye className="size-3 text-muted-foreground" />
             </Button>
