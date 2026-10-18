@@ -109,7 +109,7 @@ static class AttachmentEndpoints
                 """;
             try
             {
-                await ReplaceExistingRoleAttachmentAsync(conn, itemId, role, user.Id);
+                await ReplaceExistingRoleAttachmentAsync(conn, itemId, role, file.FileName, storedPath, user.Id);
 
                 await using var insertCmd = new NpgsqlCommand(insertSql, conn);
                 insertCmd.Parameters.AddWithValue("id", attachmentId);
@@ -192,7 +192,7 @@ static class AttachmentEndpoints
                 hash = Convert.ToHexString(await sha256.ComputeHashAsync(readStream));
             }
 
-            await ReplaceExistingRoleAttachmentAsync(conn, itemId, body.Role, user.Id);
+            await ReplaceExistingRoleAttachmentAsync(conn, itemId, body.Role, fileName, fullPath, user.Id);
 
             const string insertSql = """
                 INSERT INTO item_attachments (id, item_id, file_name, file_path, file_hash, file_size, uploaded_at, preview_role, revision_number)
@@ -323,23 +323,66 @@ static class AttachmentEndpoints
     // stary załącznik zostawał w bazie I na dysku, niewidoczny w UI (RoleSlot pokazuje
     // tylko jeden, znaleziony przez .find()), ale zajmujący miejsce na zawsze. Wymuszone
     // tutaj, więc działa identycznie niezależnie od tego, kto woła ten endpoint.
+    //
+    // "cad"/"drawing" się kumulują, ale tylko między REWIZJAMI: makra nazywają plik
+    // "numer (nazwa).REWIZJA.rozszerzenie", więc ta sama nazwa to ta sama rewizja wysłana
+    // jeszcze raz -- i ona ma zastąpić poprzedni wpis, nie dołożyć kolejny. Bez tego każda
+    // ponowna wysyłka rewizji A dokładała wiersz "…A.FCStd" (zgłoszone z praktyki: trzy
+    // takie same w panelu), a przy wspólnym magazynie wszystkie wskazywały TEN SAM plik na
+    // dysku, więc usunięcie jednego z nich kasowało plik spod pozostałych.
+    //
+    // newFilePath to ścieżka, pod którą leży NOWY plik: przy /register makro kopiuje go w
+    // miejsce starego (ta sama ścieżka), więc stary wiersz znika, ale pliku nie wolno ruszyć.
     private static async Task ReplaceExistingRoleAttachmentAsync(
-        NpgsqlConnection conn, Guid itemId, string? role, Guid userId)
+        NpgsqlConnection conn, Guid itemId, string? role, string fileName, string newFilePath, Guid userId)
     {
         // "image" dochodzi do jednoslotowych: zrzut przedstawia BIEŻĄCĄ postać modelu, więc
         // kolejna wysyłka ma go zastąpić, a nie odkładać obok (inaczej każdy upload zostawiałby
         // nieosiągalny plik na dysku -- RoleSlot i podgląd biorą pierwszy znaleziony).
-        if (role is not ("pdf" or "step" or "image"))
+        if (role is "pdf" or "step" or "image")
+            await DeleteRoleAttachmentsAsync(conn, itemId, role, userId, newFilePath);
+        else if (role is "cad" or "drawing")
+            await DeleteSameNameAttachmentsAsync(conn, itemId, role, fileName, newFilePath, userId);
+    }
+
+    private static async Task DeleteSameNameAttachmentsAsync(
+        NpgsqlConnection conn, Guid itemId, string role, string fileName, string newFilePath, Guid userId)
+    {
+        var existing = new List<string>();
+        await using (var deleteCmd = new NpgsqlCommand("""
+            DELETE FROM item_attachments
+            WHERE item_id = @itemId AND preview_role = @role AND file_name = @fileName
+            RETURNING file_path;
+            """, conn))
+        {
+            deleteCmd.Parameters.AddWithValue("itemId", itemId);
+            deleteCmd.Parameters.AddWithValue("role", role);
+            deleteCmd.Parameters.AddWithValue("fileName", fileName);
+            await using var reader = await deleteCmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+                existing.Add(reader.GetString(0));
+        }
+
+        if (existing.Count == 0)
             return;
 
-        await DeleteRoleAttachmentsAsync(conn, itemId, role, userId);
+        await LogAttachmentHistoryAsync(conn, itemId, fileName, "removed", userId);
+        foreach (var path in existing.Distinct())
+            DeleteStoredFileUnlessSame(path, newFilePath);
+    }
+
+    private static void DeleteStoredFileUnlessSame(string path, string keepPath)
+    {
+        if (string.Equals(Path.GetFullPath(path), Path.GetFullPath(keepPath), StringComparison.Ordinal))
+            return;
+        try { File.Delete(path); } catch (IOException) { /* magazyn i tak jest sierocy — nie blokujemy zastąpienia */ }
     }
 
     // Kasuje WSZYSTKIE załączniki danej roli na elemencie -- wiersze, pliki w magazynie i wpis
     // w historii. Używane w dwóch miejscach: przy zastępowaniu slotu nowym plikiem (wyżej)
     // oraz przy usuwaniu STEP-a, które zabiera ze sobą zrzut modelu (zob. MapDelete).
     private static async Task DeleteRoleAttachmentsAsync(
-        NpgsqlConnection conn, Guid itemId, string role, Guid userId)
+        NpgsqlConnection conn, Guid itemId, string role, Guid userId, string? keepPath = null)
     {
         var existing = new List<(Guid Id, string FileName, string FilePath)>();
         await using (var selectCmd = new NpgsqlCommand(
@@ -366,7 +409,10 @@ static class AttachmentEndpoints
         foreach (var (_, fileName, filePath) in existing)
         {
             await LogAttachmentHistoryAsync(conn, itemId, fileName, "removed", userId);
-            try { File.Delete(filePath); } catch (IOException) { /* magazyn i tak jest sierocy — nie blokujemy zastąpienia */ }
+            if (keepPath is not null)
+                DeleteStoredFileUnlessSame(filePath, keepPath);
+            else
+                try { File.Delete(filePath); } catch (IOException) { /* magazyn i tak jest sierocy — nie blokujemy zastąpienia */ }
         }
     }
 
