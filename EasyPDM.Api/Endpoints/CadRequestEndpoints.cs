@@ -23,7 +23,8 @@ static class CadRequestEndpoints
 
             store.Publish(user.Id, new CadRequest(
                 DateTime.UtcNow, null, body.RunId, body.Ticket, body.Mode,
-                body.Name, body.ItemType, body.Material, body.DocumentSize, body.SuggestedItemNumber));
+                body.Name, body.ItemType, body.Material, body.DocumentSize, body.SuggestedItemNumber,
+                body.Component ?? false));
             return Results.Ok();
         });
 
@@ -50,6 +51,7 @@ static class CadRequestEndpoints
                     material = request.Material,
                     documentSize = request.DocumentSize,
                     suggestedItemNumber = request.SuggestedItemNumber,
+                    component = request.Component,
                     taken = request.TakenAt is not null,
                 }
             });
@@ -86,7 +88,7 @@ static class CadRequestEndpoints
 
     record PublishCadRequest(
         string RunId, string Ticket, string Mode, string? Name, string? ItemType,
-        string? Material, long? DocumentSize, int? SuggestedItemNumber);
+        string? Material, long? DocumentSize, int? SuggestedItemNumber, bool? Component = null);
 
     record TicketRequest(string? Ticket);
 }

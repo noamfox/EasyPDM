@@ -621,5 +621,7 @@ export interface CadRequest {
   material: string | null
   documentSize: number | null
   suggestedItemNumber: number | null
+  // Komponent złożenia, nie element główny wysyłki — zob. PendingTicket.component.
+  component?: boolean
   taken: boolean
 }

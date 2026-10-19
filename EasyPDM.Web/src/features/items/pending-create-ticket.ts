@@ -41,6 +41,12 @@ type PendingTicket = {
   // trwać bardzo długo, a użytkownik nie ma o tym skąd wiedzieć, zanim zatwierdzi okno.
   // Serwer tej liczby nie zna -- w tym momencie nic jeszcze nie zostało zapisane ani wysłane.
   documentSize?: number
+  // Komponent złożenia, a nie element główny wysyłki. Jego miejsce w strukturze wynika z
+  // drzewa CAD: makro samo podpina go pod właściwe złożenie, a do projektu trafia razem z
+  // elementem głównym (serwer przypisuje projekt rodzica przy podpinaniu). Dlatego okno nie
+  // pokazuje dla niego wyboru projektu ani rodzica — wcześniej każdą część dało się dodać
+  // gdzie indziej i struktura w BOM przestawała odpowiadać złożeniu.
+  component?: boolean
 } | null
 
 function readFromUrl(): PendingTicket {
@@ -64,6 +70,7 @@ function readFromUrl(): PendingTicket {
   const material = params.get("material") ?? undefined
   const documentSizeRaw = params.get("documentSize")
   const documentSize = documentSizeRaw ? Number(documentSizeRaw) : undefined
+  const component = params.get("component") === "1"
   window.history.replaceState(null, "", window.location.pathname)
   return {
     ticket,
@@ -73,6 +80,7 @@ function readFromUrl(): PendingTicket {
     cadItemType,
     material: material || undefined,
     documentSize: Number.isFinite(documentSize) && documentSize! > 0 ? documentSize : undefined,
+    component: component || undefined,
   }
 }
 

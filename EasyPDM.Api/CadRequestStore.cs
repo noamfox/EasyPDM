@@ -93,4 +93,7 @@ record CadRequest(
     string? ItemType,
     string? Material,
     long? DocumentSize,
-    int? SuggestedItemNumber);
+    int? SuggestedItemNumber,
+    // Komponent zlozenia, a nie element glowny wysylki: przegladarka nie pokazuje dla niego
+    // wyboru projektu ani rodzica, bo jego miejsce w strukturze wynika z drzewa CAD.
+    bool Component = false);

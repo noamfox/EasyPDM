@@ -87,6 +87,7 @@ function AddNodeDialog({
   materialLocked,
   documentSize,
   ticket,
+  assemblyComponent,
   onOpenChange,
   onCreated,
 }: {
@@ -127,6 +128,10 @@ function AddNodeDialog({
   // żadnego globalnego stanu — zwykłe, ręczne użycia tego dialogu (bez tego propa) nigdy
   // nie mają z biletem nic wspólnego, niezależnie od tego, czy jakiś akurat czeka.
   ticket?: string
+  // Bilet dotyczy komponentu złożenia wysyłanego z makra CAD (zob. PendingTicket.component):
+  // bez wyboru projektu i rodzica — element powstaje bez projektu, makro podpina go pod
+  // złożenie według drzewa CAD, a serwer przypisuje mu wtedy projekt złożenia.
+  assemblyComponent?: boolean
   // Wołane przy KAŻDEJ zmianie otwarcia/zamknięcia — PendingTicketBanner używa tego, żeby
   // wrócić do wyboru "Nowy/Istniejący", gdy użytkownik zamknie to okno bez tworzenia.
   onOpenChange?: (open: boolean) => void
@@ -150,7 +155,7 @@ function AddNodeDialog({
   }
 
   const { t } = useLanguage()
-  const needsProjectPicker = fixedProjectId == null
+  const needsProjectPicker = fixedProjectId == null && !assemblyComponent
   // Checkbox "Dodaj do projektu" -- zob. skipProject niżej (obok "mode") po pełne
   // wyjaśnienie, co robi odznaczenie.
   const [addToProject, setAddToProject] = useState(true)
@@ -216,7 +221,7 @@ function AddNodeDialog({
   // więc odznaczenie tego dla komponentów pozwala uniknąć zaśmiecania drzewa projektu każdym
   // z osobna — widoczne będą TYLKO jako pozycje BOM złożenia, nie jako korzenie projektu.
   const projectOptional = mode === "part" || mode === "assembly"
-  const skipProject = needsProjectPicker && projectOptional && !addToProject
+  const skipProject = assemblyComponent || (needsProjectPicker && projectOptional && !addToProject)
   // Zmiana wybranego rodzica (albo projektu, co czyści rodzica) może uczynić bieżący "mode"
   // niedostępnym pod nowym rodzicem (np. Złożenie nie przyjmuje Folderu) — bez tego
   // przyciski trybu poprawnie by się ukryły, ale stan "mode" zostałby przy starym,
@@ -513,6 +518,7 @@ function AddNodeDialog({
         {ticket && initialName && (
           <Hint>{t("addNode.currentFileHint", { name: initialName })}</Hint>
         )}
+        {assemblyComponent && <Hint>{t("addNode.assemblyComponentHint")}</Hint>}
 
         {needsProjectPicker && (
           <div className="flex flex-col gap-2">

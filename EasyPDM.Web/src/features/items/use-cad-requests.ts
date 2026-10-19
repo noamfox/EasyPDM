@@ -58,6 +58,7 @@ export function useCadRequests() {
           material: request.material ?? undefined,
           documentSize: request.documentSize ?? undefined,
           suggestedItemNumber: request.suggestedItemNumber ?? undefined,
+          component: request.component || undefined,
         })
         // Nie weszło, bo inny bilet jest w toku — zapominamy, że ją widzieliśmy, żeby
         // podjąć ją ponownie, gdy formularz się zwolni.

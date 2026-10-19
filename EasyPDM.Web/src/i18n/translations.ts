@@ -165,6 +165,7 @@ const pl = {
 
   "addNode.title": "Dodaj element",
   "addNode.currentFileHint": "Zapisywany plik: {name}",
+  "addNode.assemblyComponentHint": "To część złożenia: trafi do projektu i na swoje miejsce w strukturze razem z elementem głównym, zgodnie z drzewem z programu CAD.",
   "addNode.triggerButton": "+ Element",
   "addNode.addToProjectAria": "Dodaj element w projekcie",
   "addNode.addSubitemAria": "Dodaj podelement",
@@ -930,6 +931,7 @@ const en: Record<TranslationKey, string> = {
 
   "addNode.title": "Add item",
   "addNode.currentFileHint": "File being saved: {name}",
+  "addNode.assemblyComponentHint": "This is a component of the assembly: it goes into the project, and into its place in the structure, together with the top-level item, following the tree from the CAD program.",
   "addNode.triggerButton": "+ Item",
   "addNode.addToProjectAria": "Add item to project",
   "addNode.addSubitemAria": "Add sub-item",
@@ -1692,6 +1694,7 @@ const de: Record<TranslationKey, string> = {
 
   "addNode.title": "Element hinzufügen",
   "addNode.currentFileHint": "Gespeicherte Datei: {name}",
+  "addNode.assemblyComponentHint": "Dies ist eine Komponente der Baugruppe: Sie kommt zusammen mit dem obersten Element ins Projekt und an ihren Platz in der Struktur, gemäß dem Baum aus dem CAD-Programm.",
   "addNode.triggerButton": "+ Element",
   "addNode.addToProjectAria": "Element zum Projekt hinzufügen",
   "addNode.addSubitemAria": "Unterelement hinzufügen",

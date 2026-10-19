@@ -1251,7 +1251,8 @@ End Function
 
 ' Zwraca True, gdy otwarta karta podjela prosbe -- wtedy NIE otwieramy nowej.
 Function PublishCadRequest(ByVal ticket As String, ByVal name As String, ByVal itemType As String, _
-                           ByVal materialName As String, ByVal documentSizeBytes As Long) As Boolean
+                           ByVal materialName As String, ByVal documentSizeBytes As Long, _
+                           Optional ByVal isComponent As Boolean = False) As Boolean
     On Error Resume Next
     PublishCadRequest = False
 
@@ -1266,6 +1267,9 @@ Function PublishCadRequest(ByVal ticket As String, ByVal name As String, ByVal i
     If itemType <> "" Then body = body & ",""itemType"":""" & JsonStringEscape(itemType) & """"
     If materialName <> "" Then body = body & ",""material"":""" & JsonStringEscape(materialName) & """"
     If documentSizeBytes > 0 Then body = body & ",""documentSize"":" & CStr(documentSizeBytes)
+    ' Komponent zlozenia: jego miejsce w strukturze wynika z drzewa CAD, wiec przegladarka
+    ' nie pokazuje dla niego wyboru projektu ani rodzica. Zob. BuildBrowserCreateUrl.
+    If isComponent Then body = body & ",""component"":true"
     body = body & "}"
 
     Dim http As Object
@@ -1340,7 +1344,7 @@ Function PublishCadRequest(ByVal ticket As String, ByVal name As String, ByVal i
     On Error GoTo 0
 End Function
 
-Function BuildBrowserCreateUrl(ByVal ticket As String, ByVal name As String, Optional ByVal materialName As String = "", Optional ByVal documentSizeBytes As Long = 0, Optional ByVal itemType As String = "") As String
+Function BuildBrowserCreateUrl(ByVal ticket As String, ByVal name As String, Optional ByVal materialName As String = "", Optional ByVal documentSizeBytes As Long = 0, Optional ByVal itemType As String = "", Optional ByVal isComponent As Boolean = False) As String
     Dim redirectPath As String
     redirectPath = "/?ticket=" & UrlEncode(ticket)
     If name <> "" Then redirectPath = redirectPath & "&name=" & UrlEncode(name)
@@ -1355,6 +1359,10 @@ Function BuildBrowserCreateUrl(ByVal ticket As String, ByVal name As String, Opt
     ' a do Czesci nie da sie nic podpiac w strukturze, wiec podpinanie komponentow konczylo
     ' sie bledem 400 i struktura BOM nie powstawala.
     If itemType <> "" Then redirectPath = redirectPath & "&itemType=" & UrlEncode(itemType)
+    ' Komponent zlozenia trafia do projektu razem z elementem glownym, a pod rodzica podpina
+    ' go samo makro wedlug drzewa CAD. Wybor projektu/rodzica w przegladarce dla kazdej
+    ' czesci z osobna pozwalal zbudowac strukture, ktora nie odpowiada zlozeniu.
+    If isComponent Then redirectPath = redirectPath & "&component=1"
     ' Identyfikator biegu: karta go zapamietuje i od tej chwili podejmuje prosby tego biegu
     ' bez otwierania kolejnych kart. Zob. gRunId.
     redirectPath = redirectPath & "&runId=" & UrlEncode(RunId())
@@ -3349,13 +3357,13 @@ Function ProcessAssemblyTree(ByVal topDoc As Object, ByRef edgesForTop As Collec
             ' ktore przywraca mozliwosc przejecia fokusu) tylko wtedy, gdy nikt jej nie
             ' podjal -- czyli gdy przegladarka jest zamknieta. Zob. CadRequestStore.cs.
             If Not PublishCadRequest(compTicket, compSuggestedName, DocKind(childModel), _
-                                     MaterialNameOf(childModel), DocumentSizeOf(childModel)) Then
+                                     MaterialNameOf(childModel), DocumentSizeOf(childModel), True) Then
                 ' Okno TYLKO wtedy, gdy karta tego biegu juz raz powstala. PIERWSZE otwarcie
                 ' przegladarki w biegu i tak przejmuje fokus (to wlasnie ta regula Windows
                 ' kazala klikac OK przed KOLEJNYMI), wiec dla pierwszego komponentu okno jest
                 ' zbedne -- a to on otwiera karte, ktora obsluzy cala reszte bez kart i okien.
                 If gRunTabOpened Then MsgBoxFront T("NewComponentBrowserPromptPrefix") & compSuggestedName & T("NewComponentBrowserPromptSuffix"), vbInformation, T("AppTitle")
-                OpenUrlInBrowser BuildBrowserCreateUrl(compTicket, compSuggestedName, MaterialNameOf(childModel), DocumentSizeOf(childModel), DocKind(childModel))
+                OpenUrlInBrowser BuildBrowserCreateUrl(compTicket, compSuggestedName, MaterialNameOf(childModel), DocumentSizeOf(childModel), DocKind(childModel), True)
             End If
 
             Dim compTicketData As Object

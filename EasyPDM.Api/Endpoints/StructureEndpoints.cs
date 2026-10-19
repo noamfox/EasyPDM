@@ -295,6 +295,32 @@ static class StructureEndpoints
             cmd.Parameters.AddWithValue("quantity", body.Quantity ?? 1);
             await cmd.ExecuteNonQueryAsync();
 
+            // Element bez projektu, podpięty pod element z projektem, wchodzi do tego projektu
+            // razem ze swoimi podzespołami, które też projektu nie mają. Tak trafiają do
+            // projektu komponenty złożenia wysłane z makra CAD: przeglądarka nie daje dla nich
+            // wyboru projektu (ich miejsce wynika z drzewa CAD), a projekt wybiera się raz, dla
+            // elementu głównego, który makro wysyła na końcu. Elementy, które już mają projekt,
+            // zostają w swoim.
+            //
+            // show_in_tree = false: taki element nie był dotąd korzeniem żadnego projektu i ma
+            // być widoczny w nowym jako pozycja złożenia, nie dodatkowo luzem w korzeniu.
+            if (parentInfo.Value.ProjectId is Guid parentProjectId)
+            {
+                const string adoptSql = """
+                    WITH RECURSIVE subtree AS (
+                        SELECT @childId AS id
+                        UNION
+                        SELECT ir.child_id FROM item_relations ir JOIN subtree s ON ir.parent_id = s.id
+                    )
+                    UPDATE items SET project_id = @projectId, show_in_tree = false
+                    WHERE id IN (SELECT id FROM subtree) AND project_id IS NULL;
+                    """;
+                await using var adoptCmd = new NpgsqlCommand(adoptSql, conn);
+                adoptCmd.Parameters.AddWithValue("childId", body.ChildId);
+                adoptCmd.Parameters.AddWithValue("projectId", parentProjectId);
+                await adoptCmd.ExecuteNonQueryAsync();
+            }
+
             return Results.Ok();
         });
 

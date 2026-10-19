@@ -266,6 +266,7 @@ function PendingTicketBanner() {
           materialLocked={!duplicateSource && !!pendingTicket.material}
           documentSize={pendingTicket.documentSize}
           ticket={pendingTicket.ticket}
+          assemblyComponent={pendingTicket.component}
           onOpenChange={(open) => {
             // Zamknięte bez utworzenia (Anuluj/X/Escape) — wraca do wyboru Nowy/Duplikuj/
             // Istniejący zamiast zostawiać ticket w martwym stanie. Po udanym utworzeniu
