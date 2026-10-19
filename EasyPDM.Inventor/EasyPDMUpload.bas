@@ -2296,8 +2296,36 @@ Sub UploadDrawingForActiveDoc(ByVal oDoc As Object, ByVal filePath As String)
         Exit Sub
     End If
 
+    If Not FileNameMatchesRecord(fname, JsonGetString(item, "recordName")) Then
+        MsgBoxFront T("Dwg_CannotIdentifyItem"), vbExclamation, T("AppTitle")
+        LogLine "Drawing upload: """ & fname & """ is not the PDM record name of item #" & itemNumber & " -- done."
+        Exit Sub
+    End If
+
     UploadDrawingToItemNatively oDoc, filePath, item
 End Sub
+
+' Czy nazwa pliku to DOKLADNIE nazwa rekordu elementu z PDM (z litera rewizji i
+' rozszerzeniem na koncu), a nie tylko cos, z czego da sie wyluskac ten sam numer.
+' Wzorzec "^[A-Za-z]*0*(\d+)" dopuszcza dowolne litery przed numerem (prefiks rodzaju, np.
+' "C" w "C0005"), wiec sam w sobie lapal tez zwykle nazwy uzytkownika: "testc2.SLDDRW"
+' czytal jako numer 2 i podpinal rysunek pod istniejacy element #2 (ten sam blad zgloszony
+' z makra FreeCAD). Pelna nazwa rekordu z serwera rozstrzyga jednoznacznie. Pusta
+' recordName = starszy serwer bez tego pola -- wtedy zostaje samo dopasowanie numeru.
+Function FileNameMatchesRecord(ByVal fname As String, ByVal recordName As String) As Boolean
+    If recordName = "" Then
+        FileNameMatchesRecord = True
+        Exit Function
+    End If
+    Dim base As String
+    base = fname
+    If InStrRev(base, ".") > 0 Then base = Left(base, InStrRev(base, ".") - 1)
+    Dim revRe As Object
+    Set revRe = CreateObject("VBScript.RegExp")
+    revRe.Pattern = "\.[A-Za-z]+$"
+    base = revRe.Replace(base, "")
+    FileNameMatchesRecord = (LCase(Replace(base, " ", "")) = LCase(Replace(recordName, " ", "")))
+End Function
 
 ' Collects the DISTINCT item ids (guids) of already-EasyPDM-linked models referenced by any
 ' of the active drawing's views (on any sheet) -- see UploadDrawingForActiveDoc's header

@@ -614,6 +614,26 @@ class AuthError(RuntimeError):
 _REVISION_NAME_PATTERN = re.compile(r"^(?P<prefix>[A-Za-z]*)(?P<number>\d+)\s*(?:\((?P<name>.+)\))?(?:\.[A-Za-z]+)?$")
 
 
+def _record_key(text):
+    """Nazwa rekordu sprowadzona do postaci porównywalnej: bez spacji (stara konwencja
+    "5 (Wspornik)" i nowa "5(Wspornik)" to ten sam rekord) i bez wielkości liter."""
+    return re.sub(r"\s+", "", text or "").lower()
+
+
+def label_matches_item(label, item):
+    """Czy etykieta dokumentu to DOKŁADNIE nazwa rekordu tego elementu (z ewentualną literą
+    rewizji na końcu), a nie tylko coś, z czego da się wyłuskać ten sam numer.
+
+    _REVISION_NAME_PATTERN dopuszcza dowolne litery przed numerem (prefiks rodzaju, np. "C"
+    w "C0005") i opcjonalny człon "(nazwa)", więc sam w sobie łapie też zwykłe nazwy
+    użytkownika: "testc2" czytał jako prefiks "testc" + numer 2, bez nazwy do sprawdzenia, i
+    podpinał plik pod istniejący element #2 (zgłoszone z praktyki). Pełna nazwa rekordu z
+    serwera (prefiks, zera wiodące, nazwa w nawiasie albo jej brak -- zob. ItemNumbering)
+    rozstrzyga jednoznacznie: "testc2" nigdy nie jest równe "2(Płyty)"."""
+    base = re.sub(r"\.[A-Za-z]+$", "", label or "")
+    return _record_key(base) == _record_key(record_name_text(item))
+
+
 def record_name_text(item, fallback_name=""):
     """Pelna NAZWA REKORDU tak, jak ma wygladac w nazwie pliku -- gotowa z serwera
     (recordName: prefiks rodzaju, zera wiodace i -- zaleznie od ustawienia zamrozonego na
@@ -1386,14 +1406,10 @@ def match_existing_item(doc, existing_items):
     if not m:
         return None
     item_number = int(m.group("number"))
-    # Gdy nazwy w etykiecie nie ma (wylaczona w Ustawieniach -> Numeracja), nie ma czego
-    # porownac i zostaje sam numer -- patrz komentarz przy _REVISION_NAME_PATTERN.
-    label_name = m.group("name")
-    label_name = label_name.strip().lower() if label_name else None
+    # Numer tylko zawęża wybór -- o trafieniu decyduje pełna nazwa rekordu, zob.
+    # label_matches_item (sam numer łapał np. "testc2" jako element #2).
     for it in existing_items:
-        if it.get("itemNumber") != item_number:
-            continue
-        if label_name is None or it.get("fileName", "").strip().lower() == label_name:
+        if it.get("itemNumber") == item_number and label_matches_item(doc.Label, it):
             return it
     return None
 
@@ -1410,15 +1426,11 @@ def match_existing_item_single(doc):
     if not m:
         return None
     item_number = int(m.group("number"))
-    label_name = m.group("name")
-    label_name = label_name.strip().lower() if label_name else None
     try:
         it = api_get(f"/items/by-number/{item_number}")
     except Exception:
         return None
-    if not it:
-        return None
-    if label_name is None or it.get("fileName", "").strip().lower() == label_name:
+    if it and label_matches_item(doc.Label, it):
         return it
     return None
 
