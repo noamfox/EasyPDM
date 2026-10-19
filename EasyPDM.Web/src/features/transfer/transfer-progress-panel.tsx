@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Check, Loader2, X } from "lucide-react"
+import { Check, ChevronDown, ChevronRight, Loader2, X } from "lucide-react"
 
 import { api } from "@/api/client"
 import type { TransferProgress } from "@/api/types"
@@ -50,6 +50,27 @@ function useTransferProgress() {
   return { progress, refetch }
 }
 
+type ProgressRow = TransferProgress["entries"][number]
+
+// Zakres wierszy pod danym wierszem (jego podzłożenia i części, na dowolnej głębokości) --
+// lista przychodzi spłaszczona w kolejności drzewa, więc gałąź to kolejne wiersze o większym
+// wcięciu, aż do pierwszego na tym samym poziomie albo wyżej.
+function branchEnd(rows: ProgressRow[], index: number): number {
+  const depth = rows[index].depth ?? 0
+  let end = index + 1
+  while (end < rows.length && (rows[end].depth ?? 0) > depth) end++
+  return end
+}
+
+// Gałąź jest gotowa, gdy ona i wszystko pod nią jest już w PDM: wysłane albo pominięte, bo
+// już tam było. Błąd gdziekolwiek w gałęzi trzyma ją rozwiniętą -- ma być widać, co padło.
+function branchComplete(rows: ProgressRow[], start: number, end: number): boolean {
+  for (let i = start; i < end; i++) {
+    if (rows[i].status !== "done" && rows[i].status !== "skipped") return false
+  }
+  return true
+}
+
 function StatusIcon({ status }: { status: TransferProgress["entries"][number]["status"] }) {
   if (status === "done")
     return <Check className="size-4 shrink-0 text-[#49c17d]" strokeWidth={3} />
@@ -82,6 +103,9 @@ function TransferProgressPanel() {
   // wylądowałoby POD nim, a do tego w chwili, gdy na ekranie może już wisieć formularz z makra.
   const [confirmingCancel, setConfirmingCancel] = useState(false)
   const [cancelPending, setCancelPending] = useState(false)
+  // Ręcznie rozwinięte/zwinięte gałęzie, po indeksie wiersza (układ wierszy jest stały przez
+  // cały bieg). Bez wpisu obowiązuje zwijanie samoczynne -- zob. collapsed niżej.
+  const [branchOverride, setBranchOverride] = useState<Record<number, boolean>>({})
   const pendingTicket = usePendingCreateTicket()
   const activeRef = useRef<HTMLLIElement | null>(null)
 
@@ -91,6 +115,7 @@ function TransferProgressPanel() {
   useEffect(() => {
     setDismissed(false)
     setConfirmingCancel(false)
+    setBranchOverride({})
   }, [startedAt])
 
   // Zakończona lista znika sama po chwili. Przy okazji budzimy dzwonek: na koniec biegu
@@ -115,6 +140,19 @@ function TransferProgressPanel() {
   if (!progress || dismissed) return null
 
   const failed = progress.entries.filter((e) => e.status === "failed").length
+
+  // Złożenie/podzłożenie, którego cała zawartość jest już w PDM, zwija się samo, żeby gotowe
+  // gałęzie nie zasłaniały tego, co jeszcze trwa. Kliknięcie strzałki to nadpisuje do końca
+  // biegu. Wiersze ukryte w zwiniętej gałęzi są po prostu pomijane przy rysowaniu.
+  const rows = progress.entries
+  const visible: { row: ProgressRow; index: number; hidden: number; collapsed: boolean | null }[] = []
+  for (let i = 0; i < rows.length; ) {
+    const end = branchEnd(rows, i)
+    const hasChildren = end > i + 1
+    const collapsed = hasChildren ? (branchOverride[i] ?? branchComplete(rows, i, end)) : null
+    visible.push({ row: rows[i], index: i, hidden: end - i - 1, collapsed })
+    i = collapsed ? end : i + 1
+  }
   const pct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0
 
   // Anulowanie pozostałej części biegu. Serwer tylko zapisuje prośbę; makro sprawdza ją przy
@@ -209,7 +247,7 @@ function TransferProgressPanel() {
       <ul className="max-h-[22rem] overflow-y-auto px-2 py-2">
         {/* Wiersze, nie pliki: część użyta w kilku złożeniach stoi pod każdym z nich, z tym
             samym statusem. Stąd klucz po pozycji, a przewijanie do PIERWSZEGO aktywnego. */}
-        {progress.entries.map((entry, index) => (
+        {visible.map(({ row: entry, index, hidden, collapsed }) => (
           <li
             key={`${index}:${entry.key}`}
             ref={
@@ -240,6 +278,18 @@ function TransferProgressPanel() {
             >
               {entry.label}
             </span>
+            {collapsed !== null && (
+              <button
+                type="button"
+                onClick={() => setBranchOverride((prev) => ({ ...prev, [index]: !collapsed }))}
+                className="ml-auto flex shrink-0 items-center gap-0.5 rounded px-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
+                aria-label={collapsed ? t("transfer.expandBranch", { count: hidden }) : t("transfer.collapseBranch")}
+                title={collapsed ? t("transfer.expandBranch", { count: hidden }) : t("transfer.collapseBranch")}
+              >
+                {collapsed && <span>+{hidden}</span>}
+                {collapsed ? <ChevronRight className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+              </button>
+            )}
           </li>
         ))}
       </ul>
