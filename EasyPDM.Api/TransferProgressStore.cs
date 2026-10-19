@@ -33,10 +33,10 @@ class TransferProgressStore
     // (DiscoverComponentTree przechodzi drzewo przed pierwszym uploadem), przy pobieraniu
     // bierze ją z GET /items/{id}/descendants. Bez pełnej listy od początku pasek postępu
     // kłamałby: "3 z 3" zamieniałoby się w "3 z 9", gdy znajdzie się kolejny poziom.
-    public void Start(Guid userId, string kind, IReadOnlyList<TransferProgressEntry> entries)
+    public void Start(Guid userId, string kind, IReadOnlyList<TransferProgressEntry> entries, IReadOnlyList<ProgressRow> rows)
     {
         Sweep();
-        _byUser[userId] = new TransferProgress(DateTime.UtcNow, DateTime.UtcNow, kind, entries.ToList(), false, false);
+        _byUser[userId] = new TransferProgress(DateTime.UtcNow, DateTime.UtcNow, kind, entries.ToList(), rows.ToList(), false, false);
     }
 
     // Zwraca false, gdy nie ma czego aktualizować (np. serwer zrestartował się w trakcie) --
@@ -131,16 +131,16 @@ class TransferProgressEntry
     public required string Key { get; init; }
     public required string Label { get; init; }
     public string Status { get; set; } = "pending";
-    // Poziom zagłębienia w drzewie złożenia (0 = najwyższy) — tylko do wcięcia w panelu.
-    // Ustawiany przez ProgressTree; bez relacji wszystko zostaje na 0, czyli płasko.
-    public int Depth { get; set; }
 }
 
 record TransferProgress(
     DateTime StartedAt,
     DateTime UpdatedAt,
     string Kind,
+    // Każdy plik raz -- po tym idzie odhaczanie, licznik i raport.
     List<TransferProgressEntry> Entries,
+    // Wiersze panelu: plik użyty w kilku złożeniach stoi pod każdym z nich (zob. ProgressTree).
+    List<ProgressRow> Rows,
     bool Finished,
     // Użytkownik poprosił w przeglądarce o przerwanie -- zob. Cancel. Zostaje true także po
     // zakończeniu, bo z tego raport w powiadomieniach wie, że bieg przerwano, a nie że po

@@ -3120,21 +3120,25 @@ End Sub
 ' Lista do okna "Wykryto zlozenie" ulozona w drzewo z wcieciami: zlozenie glowne, pod nim
 ' jego czesci i podzlozenia, pod podzlozeniem jego czesci -- o poziom glebiej kazde. Ta sama
 ' zasada co w panelu postepu w przegladarce (ProgressTree.cs) i w makrze FreeCAD: dzieci w
-' kolejnosci z drzewa CAD, a czesc uzyta w kilku zlozeniach stoi raz, pod PIERWSZYM, w ktorym
-' wystepuje. Komponent, do ktorego nie prowadzi zadna relacja, trafia na koniec na pierwszy
-' poziom, zeby nic nie zginelo z listy. lineByPath: sciezka -> nazwa pliku z dopiskiem
+' kolejnosci z drzewa CAD, a czesc uzyta w kilku zlozeniach stoi pod KAZDYM z nich (choc
+' wysylana jest raz). Plik nie moze byc wlasnym przodkiem -- to chroni przed cyklem.
+' Komponent, do ktorego nie prowadzi zadna relacja, trafia na koniec na pierwszy poziom,
+' zeby nic nie zginelo z listy. lineByPath: sciezka -> nazwa pliku z dopiskiem
 ' "JUZ w PDM jako ...".
 Function TreeSummaryText(ByVal topPath As String, ByVal order As Collection, ByVal edges As Collection, ByVal lineByPath As Object) As String
-    Dim placed As Object
-    Set placed = CreateObject("Scripting.Dictionary")
+    Dim seen As Object
+    Set seen = CreateObject("Scripting.Dictionary")
+    Dim ancestors As Object
+    Set ancestors = CreateObject("Scripting.Dictionary")
     Dim acc As String
     acc = "- " & Mid(topPath, InStrRev(topPath, "\") + 1) & vbCrLf
-    placed(topPath) = True
-    AppendTreeSummaryChildren topPath, 1, edges, lineByPath, placed, acc
+    seen(topPath) = True
+    ancestors(topPath) = True
+    AppendTreeSummaryChildren topPath, 1, edges, lineByPath, seen, ancestors, acc
     Dim p As Variant
     For Each p In order
-        If Not placed.Exists(CStr(p)) Then
-            placed(CStr(p)) = True
+        If Not seen.Exists(CStr(p)) Then
+            seen(CStr(p)) = True
             acc = acc & "    - " & lineByPath(CStr(p)) & vbCrLf
         End If
     Next p
@@ -3142,14 +3146,14 @@ Function TreeSummaryText(ByVal topPath As String, ByVal order As Collection, ByV
 End Function
 
 Private Sub AppendTreeSummaryChildren(ByVal parentPath As String, ByVal depth As Long, ByVal edges As Collection, _
-                                      ByVal lineByPath As Object, ByVal placed As Object, ByRef acc As String)
+                                      ByVal lineByPath As Object, ByVal seen As Object, ByVal ancestors As Object, ByRef acc As String)
     Dim e As Variant
     For Each e In edges
         If CStr(e("parent")) = parentPath Then
             Dim childPath As String
             childPath = CStr(e("child"))
-            If Not placed.Exists(childPath) Then
-                placed(childPath) = True
+            If Not ancestors.Exists(childPath) Then
+                seen(childPath) = True
                 Dim entryText As String
                 If lineByPath.Exists(childPath) Then
                     entryText = lineByPath(childPath)
@@ -3158,7 +3162,9 @@ Private Sub AppendTreeSummaryChildren(ByVal parentPath As String, ByVal depth As
                 End If
                 If CLng(e("qty")) > 1 Then entryText = entryText & " x" & CLng(e("qty"))
                 acc = acc & String(depth * 4, " ") & "- " & entryText & vbCrLf
-                AppendTreeSummaryChildren childPath, depth + 1, edges, lineByPath, placed, acc
+                ancestors(childPath) = True
+                AppendTreeSummaryChildren childPath, depth + 1, edges, lineByPath, seen, ancestors, acc
+                ancestors.Remove childPath
             End If
         End If
     Next e

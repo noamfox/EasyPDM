@@ -207,10 +207,17 @@ function TransferProgressPanel() {
       {/* Lista bywa długa (złożenie potrafi mieć kilkadziesiąt komponentów), więc własne
           przewijanie zamiast rozpychania panelu na całą wysokość ekranu. */}
       <ul className="max-h-[22rem] overflow-y-auto px-2 py-2">
-        {progress.entries.map((entry) => (
+        {/* Wiersze, nie pliki: część użyta w kilku złożeniach stoi pod każdym z nich, z tym
+            samym statusem. Stąd klucz po pozycji, a przewijanie do PIERWSZEGO aktywnego. */}
+        {progress.entries.map((entry, index) => (
           <li
-            key={entry.key}
-            ref={entry.status === "active" ? activeRef : undefined}
+            key={`${index}:${entry.key}`}
+            ref={
+              entry.status === "active" &&
+              progress.entries.findIndex((e) => e.status === "active") === index
+                ? activeRef
+                : undefined
+            }
             className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-[13px] ${
               entry.status === "active" ? "bg-primary/10" : ""
             }`}

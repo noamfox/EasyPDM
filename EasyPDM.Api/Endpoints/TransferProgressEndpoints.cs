@@ -55,8 +55,9 @@ static class TransferProgressEndpoints
             if (edges.Count == 0 && body.Kind == "download")
                 edges = await LoadDownloadEdgesAsync(connectionString, entries);
 
-            entries = ProgressTree.Arrange(entries, edges);
-            store.Start(user.Id, body.Kind, entries);
+            var (ordered, rows) = ProgressTree.Arrange(entries, edges);
+            store.Start(user.Id, body.Kind, ordered, rows);
+            entries = ordered;
             return Results.Ok(new { count = entries.Count });
         });
 
@@ -137,6 +138,7 @@ static class TransferProgressEndpoints
             if (progress is null)
                 return Results.Ok(new { progress = (object?)null });
 
+            var byKey = progress.Entries.ToDictionary(e => e.Key, StringComparer.Ordinal);
             return Results.Ok(new
             {
                 progress = new
@@ -149,7 +151,10 @@ static class TransferProgressEndpoints
                     // itemNumberLabel/recordName: jedno miejsce liczy, klienci tylko pokazują.
                     total = progress.Entries.Count,
                     done = progress.Entries.Count(e => e.Status is "done" or "skipped"),
-                    entries = progress.Entries.Select(e => new { key = e.Key, label = e.Label, status = e.Status, depth = e.Depth }),
+                    // Wiersze, nie pliki: część użyta w kilku złożeniach jest tu kilka razy, każdy
+                    // wiersz z tym samym, wspólnym statusem. total/done wyżej liczą pliki.
+                    entries = progress.Rows.Select(r =>
+                        new { key = r.Key, label = byKey[r.Key].Label, status = byKey[r.Key].Status, depth = r.Depth }),
                 }
             });
         });

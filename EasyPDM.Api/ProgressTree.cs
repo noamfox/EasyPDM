@@ -10,7 +10,15 @@
 // tylko pary rodzic–dziecko, które i tak trzymają w pamięci do podpinania BOM.
 static class ProgressTree
 {
-    public static List<TransferProgressEntry> Arrange(
+    private const int MaxRows = 2000;
+
+    // Wynik to dwie rzeczy, bo plik i wiersz to nie to samo:
+    //   Entries — każdy plik RAZ (w kolejności pierwszego wystąpienia w drzewie). Po nich idzie
+    //             odhaczanie, licznik "x z y" i raport — bo każdy plik jest wysyłany raz.
+    //   Rows    — wiersze do wyświetlenia. Część użyta w kilku złożeniach stoi pod KAŻDYM z nich
+    //             (decyzja użytkownika: ma ją widzieć wszędzie, gdzie występuje), a jej status
+    //             jest wspólny dla wszystkich wystąpień — wysłana raz, odhaczona wszędzie.
+    public static (List<TransferProgressEntry> Entries, List<ProgressRow> Rows) Arrange(
         List<TransferProgressEntry> entries, IEnumerable<(string Parent, string Child)> edges)
     {
         var byKey = entries.ToDictionary(e => e.Key, StringComparer.Ordinal);
@@ -35,24 +43,31 @@ static class ProgressTree
         // Bez żadnej relacji (starsze makro, pojedynczy plik) lista zostaje dokładnie taka, jak
         // przyszła — płaska, jak dotąd.
         if (children.Count == 0)
-            return entries;
+            return (entries, entries.Select(e => new ProgressRow(e.Key, 0)).ToList());
 
-        var arranged = new List<TransferProgressEntry>(entries.Count);
-        var placed = new HashSet<string>(StringComparer.Ordinal);
+        var rows = new List<ProgressRow>();
+        var ordered = new List<TransferProgressEntry>(entries.Count);
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        // Klucze na ścieżce od korzenia do bieżącego wiersza. Chroni przed cyklem w danych —
+        // ten sam plik może stać w wielu gałęziach, ale nie może być własnym przodkiem.
+        var ancestors = new HashSet<string>(StringComparer.Ordinal);
 
         void Place(string key, int depth)
         {
-            // Część użyta w kilku złożeniach jest wysyłana raz, więc i na liście stoi raz: pod
-            // PIERWSZYM złożeniem, w którym występuje (decyzja użytkownika). Kolejne wystąpienia
-            // są pomijane.
-            if (!placed.Add(key))
+            // Podzłożenie użyte wiele razy rozwija się pod każdym wystąpieniem z całą
+            // zawartością, więc przy dużym złożeniu wierszy przybywa szybko. Powyżej limitu
+            // dokładamy już tylko pierwsze wystąpienia — każdy plik nadal jest na liście.
+            if (rows.Count >= MaxRows && seen.Contains(key))
                 return;
-            var entry = byKey[key];
-            entry.Depth = depth;
-            arranged.Add(entry);
+            if (!ancestors.Add(key))
+                return;
+            rows.Add(new ProgressRow(key, depth));
+            if (seen.Add(key))
+                ordered.Add(byKey[key]);
             if (children.TryGetValue(key, out var list))
                 foreach (var child in list)
                     Place(child, depth + 1);
+            ancestors.Remove(key);
         }
 
         // Korzenie — to, co nie jest niczyim dzieckiem — w kolejności zgłoszenia.
@@ -63,8 +78,12 @@ static class ProgressTree
         // Zabezpieczenie: cokolwiek nieosiągalne z korzeni (cykl w danych) i tak trafia na listę,
         // płasko na końcu. Lista bez którejś pozycji kłamałaby przy liczniku "3 z 7".
         foreach (var entry in entries)
-            Place(entry.Key, 0);
+            if (!seen.Contains(entry.Key))
+                Place(entry.Key, 0);
 
-        return arranged;
+        return (ordered, rows);
     }
 }
+
+// Jeden wiersz panelu postępu: który plik i na jakim poziomie wcięcia (0 = najwyższy).
+record ProgressRow(string Key, int Depth);

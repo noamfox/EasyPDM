@@ -368,10 +368,11 @@ public class TransferProgressTests
         (await client.DeleteAsync("/api/progress")).EnsureSuccessStatusCode();
     }
 
-    // Część użyta w kilku złożeniach jest wysyłana raz, więc i na liście stoi raz — pod
-    // PIERWSZYM złożeniem, w którym występuje. Licznik "x z y" liczy pliki, nie wiersze.
+    // Część użyta w kilku złożeniach stoi pod KAŻDYM z nich (użytkownik chce ją widzieć
+    // wszędzie, gdzie występuje), ale jest wysyłana raz: odhaczenie trafia we wszystkie jej
+    // wiersze naraz, a licznik "x z y" liczy pliki, nie wiersze.
     [Fact]
-    public async Task Czesc_wspolna_stoi_pod_pierwszym_zlozeniem()
+    public async Task Czesc_wspolna_stoi_pod_kazdym_zlozeniem_ze_wspolnym_statusem()
     {
         await using var factory = new EasyPDMWebApplicationFactory();
         using var client = factory.CreateClient();
@@ -389,9 +390,18 @@ public class TransferProgressTests
         })).EnsureSuccessStatusCode();
 
         Assert.Equal(
-            [("__top__", 0), ("s1", 1), ("sruba", 2), ("s2", 1)],
+            [("__top__", 0), ("s1", 1), ("sruba", 2), ("s2", 1), ("sruba", 2)],
             await TreeAsync(client));
         Assert.Equal(4, (await ReadAsync(client)).GetProperty("total").GetInt32());
+
+        (await MarkAsync(client, "sruba", "done")).EnsureSuccessStatusCode();
+        var progress = await ReadAsync(client);
+        var sruby = progress.GetProperty("entries").EnumerateArray()
+            .Where(e => e.GetProperty("key").GetString() == "sruba")
+            .Select(e => e.GetProperty("status").GetString())
+            .ToList();
+        Assert.Equal(["done", "done"], sruby);
+        Assert.Equal(1, progress.GetProperty("done").GetInt32());
 
         (await client.DeleteAsync("/api/progress")).EnsureSuccessStatusCode();
     }

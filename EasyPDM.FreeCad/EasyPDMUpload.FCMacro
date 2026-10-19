@@ -2534,29 +2534,33 @@ def _tree_summary_lines(top_file, order, edges, make_line):
     nim jego części i podzłożenia, pod podzłożeniem jego części -- o poziom głębiej każde.
 
     Ta sama zasada co w panelu postępu w przeglądarce (ProgressTree.cs): dzieci w kolejności
-    z drzewa CAD, a część użyta w kilku złożeniach stoi raz, pod PIERWSZYM, w którym
-    występuje -- i tak jest wysyłana raz. Komponent, do którego nie prowadzi żadna relacja
-    (nie powinno się zdarzyć), trafia na koniec na pierwszy poziom, żeby nic nie zginęło z
-    listy. make_line(ścieżka, głębokość, ilość) zwraca gotową linię."""
+    z drzewa CAD, a część użyta w kilku złożeniach stoi pod KAŻDYM z nich (choć wysyłana jest
+    raz). Plik nie może być własnym przodkiem -- to chroni przed cyklem. Komponent, do
+    którego nie prowadzi żadna relacja (nie powinno się zdarzyć), trafia na koniec na
+    pierwszy poziom, żeby nic nie zginęło z listy. make_line(ścieżka, głębokość, ilość)
+    zwraca gotową linię."""
     children = {}
     for parent, child, qty in edges:
         children.setdefault(parent, []).append((child, qty))
 
     lines = [make_line(top_file, 0)]
-    placed = {top_file}
+    seen = {top_file}
+    ancestors = [top_file]
 
     def place(parent, depth):
         for child, qty in children.get(parent, []):
-            if child in placed:
+            if child in ancestors:
                 continue
-            placed.add(child)
+            seen.add(child)
             lines.append(make_line(child, depth, qty))
+            ancestors.append(child)
             place(child, depth + 1)
+            ancestors.pop()
 
     place(top_file, 1)
     for f in order:
-        if f not in placed:
-            placed.add(f)
+        if f not in seen:
+            seen.add(f)
             lines.append(make_line(f, 1))
     return lines
 
