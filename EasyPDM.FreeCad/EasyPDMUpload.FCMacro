@@ -2529,6 +2529,38 @@ def sync_stale_children(parent_item_id, local_child_ids):
             pass
 
 
+def _tree_summary_lines(top_file, order, edges, make_line):
+    """Lista do okna "Wykryto złożenie" ułożona w drzewo z wcięciami: złożenie główne, pod
+    nim jego części i podzłożenia, pod podzłożeniem jego części -- o poziom głębiej każde.
+
+    Ta sama zasada co w panelu postępu w przeglądarce (ProgressTree.cs): dzieci w kolejności
+    z drzewa CAD, a część użyta w kilku złożeniach stoi raz, pod PIERWSZYM, w którym
+    występuje -- i tak jest wysyłana raz. Komponent, do którego nie prowadzi żadna relacja
+    (nie powinno się zdarzyć), trafia na koniec na pierwszy poziom, żeby nic nie zginęło z
+    listy. make_line(ścieżka, głębokość, ilość) zwraca gotową linię."""
+    children = {}
+    for parent, child, qty in edges:
+        children.setdefault(parent, []).append((child, qty))
+
+    lines = [make_line(top_file, 0)]
+    placed = {top_file}
+
+    def place(parent, depth):
+        for child, qty in children.get(parent, []):
+            if child in placed:
+                continue
+            placed.add(child)
+            lines.append(make_line(child, depth, qty))
+            place(child, depth + 1)
+
+    place(top_file, 1)
+    for f in order:
+        if f not in placed:
+            placed.add(f)
+            lines.append(make_line(f, 1))
+    return lines
+
+
 def process_assembly_tree(top_doc, target_folder=None):
     """Wykrywa złożenie (App::Link do zewnętrznych plików, rekurencyjnie) i dla KAŻDEGO
     nowego komponentu (jeszcze nie wysłanego do PDM — rozpoznawane po etykiecie
@@ -2576,18 +2608,21 @@ def process_assembly_tree(top_doc, target_folder=None):
     # "rozpozna" ją jako STARY element, zamiast utworzyć nowy (potwierdzone w praktyce na
     # analogicznym mechanizmie w makrze SolidWorks -- tam przez Custom Property zamiast
     # etykiety, ale ryzyko jest identyczne).
-    summary_lines = []
-    for f in order:
-        line = f"- {os.path.basename(f)}"
-        matched_for_summary = match_existing_item(docs[f], existing_items)
-        if matched_for_summary:
-            line += t(
-                "already_in_pdm_as",
-                number=matched_for_summary.get("itemNumber"),
-                name=matched_for_summary.get("fileName"),
-            )
-        summary_lines.append(line)
-    summary = "\n".join(summary_lines)
+    def summary_line(f, depth, qty=1):
+        line = "    " * depth + f"- {os.path.basename(f)}"
+        if qty > 1:
+            line += f" ×{qty}"
+        if f in docs:
+            matched_for_summary = match_existing_item(docs[f], existing_items)
+            if matched_for_summary:
+                line += t(
+                    "already_in_pdm_as",
+                    number=matched_for_summary.get("itemNumber"),
+                    name=matched_for_summary.get("fileName"),
+                )
+        return line
+
+    summary = "\n".join(_tree_summary_lines(getattr(top_doc, "FileName", ""), order, edges, summary_line))
 
     choice = QtWidgets.QMessageBox.question(
         None,

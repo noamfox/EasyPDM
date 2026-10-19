@@ -3117,6 +3117,53 @@ Sub SyncStaleChildren(ByVal parentItemId As String, ByVal localChildIds As Objec
     Next c
 End Sub
 
+' Lista do okna "Wykryto zlozenie" ulozona w drzewo z wcieciami: zlozenie glowne, pod nim
+' jego czesci i podzlozenia, pod podzlozeniem jego czesci -- o poziom glebiej kazde. Ta sama
+' zasada co w panelu postepu w przegladarce (ProgressTree.cs) i w makrze FreeCAD: dzieci w
+' kolejnosci z drzewa CAD, a czesc uzyta w kilku zlozeniach stoi raz, pod PIERWSZYM, w ktorym
+' wystepuje. Komponent, do ktorego nie prowadzi zadna relacja, trafia na koniec na pierwszy
+' poziom, zeby nic nie zginelo z listy. lineByPath: sciezka -> nazwa pliku z dopiskiem
+' "JUZ w PDM jako ...".
+Function TreeSummaryText(ByVal topPath As String, ByVal order As Collection, ByVal edges As Collection, ByVal lineByPath As Object) As String
+    Dim placed As Object
+    Set placed = CreateObject("Scripting.Dictionary")
+    Dim acc As String
+    acc = "- " & Mid(topPath, InStrRev(topPath, "\") + 1) & vbCrLf
+    placed(topPath) = True
+    AppendTreeSummaryChildren topPath, 1, edges, lineByPath, placed, acc
+    Dim p As Variant
+    For Each p In order
+        If Not placed.Exists(CStr(p)) Then
+            placed(CStr(p)) = True
+            acc = acc & "    - " & lineByPath(CStr(p)) & vbCrLf
+        End If
+    Next p
+    TreeSummaryText = acc
+End Function
+
+Private Sub AppendTreeSummaryChildren(ByVal parentPath As String, ByVal depth As Long, ByVal edges As Collection, _
+                                      ByVal lineByPath As Object, ByVal placed As Object, ByRef acc As String)
+    Dim e As Variant
+    For Each e In edges
+        If CStr(e("parent")) = parentPath Then
+            Dim childPath As String
+            childPath = CStr(e("child"))
+            If Not placed.Exists(childPath) Then
+                placed(childPath) = True
+                Dim entryText As String
+                If lineByPath.Exists(childPath) Then
+                    entryText = lineByPath(childPath)
+                Else
+                    entryText = Mid(childPath, InStrRev(childPath, "\") + 1)
+                End If
+                If CLng(e("qty")) > 1 Then entryText = entryText & " x" & CLng(e("qty"))
+                acc = acc & String(depth * 4, " ") & "- " & entryText & vbCrLf
+                AppendTreeSummaryChildren childPath, depth + 1, edges, lineByPath, placed, acc
+            End If
+        End If
+    Next e
+End Sub
+
 Function ProcessAssemblyTree(ByVal topModel As Object, ByRef edgesForTop As Collection, ByVal targetFolder As String, ByRef lockedComponents As Collection) As Boolean
     ProcessAssemblyTree = False
     If topModel.GetType() <> SW_DOC_ASSEMBLY Then Exit Function
@@ -3184,10 +3231,12 @@ Function ProcessAssemblyTree(ByVal topModel As Object, ByRef edgesForTop As Coll
     ' linked" to an unrelated item). See the same caveat in the file header for the
     ' top-level document's own version of this warning.
     Dim summary As String
+    Dim lineByPath As Object
+    Set lineByPath = CreateObject("Scripting.Dictionary")
     Dim p As Variant
     For Each p In order
         Dim summaryLine As String
-        summaryLine = "- " & Mid(p, InStrRev(p, "\") + 1)
+        summaryLine = Mid(p, InStrRev(p, "\") + 1)
 
         Dim summaryLinkedId As String
         summaryLinkedId = GetLinkedItemIdOn(models(p))
@@ -3214,8 +3263,9 @@ Function ProcessAssemblyTree(ByVal topModel As Object, ByRef edgesForTop As Coll
             End If
         End If
 
-        summary = summary & summaryLine & vbCrLf
+        lineByPath(CStr(p)) = summaryLine
     Next p
+    summary = TreeSummaryText(topModel.GetPathName(), order, tree("edges"), lineByPath)
 
     Dim choice As VbMsgBoxResult
     choice = MsgBoxFront(T("AssemblyLinksPart1") & order.Count & T("AssemblyLinksPart2") & vbCrLf & vbCrLf & _
