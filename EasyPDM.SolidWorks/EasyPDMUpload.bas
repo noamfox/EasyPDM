@@ -186,6 +186,13 @@ Private Const TOP_DOCUMENT_PROGRESS_KEY As String = "__top__"
 ' kolejnych kart.
 Private gRunId As String
 Private gRunTabOpened As Boolean
+' Decyzja o samym dokumencie glownym podjeta juz na liscie "zaktualizowac?" przy jego
+' komponentach (zob. ProcessAssemblyTree) -- main uzywa jej zamiast pytac drugi raz o
+' podpiecie i o STEP/PDF. Zerowane na poczatku kazdego biegu: zmienne modulu VBA zyja
+' miedzy uruchomieniami makra.
+Private gTopPresetItemId As String
+Private gTopPresetStep As Boolean
+Private gTopPresetPdf As Boolean
 ' Uzytkownik kliknal "Anuluj" w panelu postepu -- zob. TransferCancelled. Zerowana na
 ' starcie main: zmienne modulu VBA potrafia przezyc miedzy uruchomieniami makra, a
 ' pozostawiona tu prawda zatrzymywalaby kazdy kolejny bieg, zanim by ruszyl.
@@ -335,10 +342,10 @@ Private Function T_PL(ByVal key As String) As String
         Case "NoActiveSavedDocument": T_PL = "Brak aktywnego, zapisanego dokumentu."
         Case "ExportStepPrompt": T_PL = "Wyeksportowac i wyslac model STEP (podglad 3D)?"
         Case "ExportPdfPrompt": T_PL = "Wyeksportowac i wyslac plik PDF?"
-        Case "UpdateExistingPrefix": T_PL = "Te komponenty sa juz w PDM w statusie 'W pracy':"
+        Case "UpdateExistingPrefix": T_PL = "Te pliki sa juz w PDM w statusie 'W pracy':"
         Case "UpdateExistingSuffix": T_PL = "Zaktualizowac je? Plik CAD zastapi te sama rewizje w PDM."
-        Case "UpdateExistingStepPrompt": T_PL = "Wyeksportowac i wyslac na nowo model STEP (podglad 3D) tych komponentow?"
-        Case "UpdateExistingPdfPrompt": T_PL = "Wyeksportowac i wyslac na nowo plik PDF tych komponentow?"
+        Case "UpdateExistingStepPrompt": T_PL = "Wyeksportowac i wyslac na nowo model STEP (podglad 3D) tych plikow?"
+        Case "UpdateExistingPdfPrompt": T_PL = "Wyeksportowac i wyslac na nowo plik PDF tych plikow?"
         Case "UpdateExistingFailedPrefix": T_PL = "Nie udalo sie zaktualizowac komponentu: "
         Case "Dwg_CannotIdentifyItem": T_PL = "Nie udalo sie rozpoznac, do ktorego elementu PDM nalezy ten rysunek -- zapisz najpierw czesc/zlozenie przez EasyPDM (zeby dostalo nazwe w formacie 'numer (nazwa)'), a potem zapisz rysunek z tego pliku."
         Case "Dwg_ReferencedPartNotLinkedPrompt": T_PL = "Ten rysunek dokumentuje czesc/zlozenie, ktore nie zostalo jeszcze wyslane do EasyPDM. Wyslac je teraz jako nowy element (numer/nazwe/rewizje ustalisz w przegladarce), a potem ten rysunek?"
@@ -415,10 +422,10 @@ Private Function T_EN(ByVal key As String) As String
         Case "NoActiveSavedDocument": T_EN = "No active, saved document."
         Case "ExportStepPrompt": T_EN = "Export and upload STEP model (3D preview)?"
         Case "ExportPdfPrompt": T_EN = "Export and upload a PDF file?"
-        Case "UpdateExistingPrefix": T_EN = "These components are already in the PDM with status 'In work':"
+        Case "UpdateExistingPrefix": T_EN = "These files are already in the PDM with status 'In work':"
         Case "UpdateExistingSuffix": T_EN = "Update them? Their CAD file replaces the same revision in the PDM."
-        Case "UpdateExistingStepPrompt": T_EN = "Export and upload a fresh STEP model (3D preview) for these components?"
-        Case "UpdateExistingPdfPrompt": T_EN = "Export and upload a fresh PDF for these components?"
+        Case "UpdateExistingStepPrompt": T_EN = "Export and upload a fresh STEP model (3D preview) for these files?"
+        Case "UpdateExistingPdfPrompt": T_EN = "Export and upload a fresh PDF for these files?"
         Case "UpdateExistingFailedPrefix": T_EN = "Could not update the component: "
         Case "Dwg_CannotIdentifyItem": T_EN = "Could not identify which PDM item this drawing belongs to -- save the Part/Assembly through EasyPDM first (so it gets a filename in the 'number (name)' format), then save the drawing from that file."
         Case "Dwg_ReferencedPartNotLinkedPrompt": T_EN = "This drawing documents a Part/Assembly that hasn't been uploaded to EasyPDM yet. Upload it now as a new item (you'll pick the number/name/revision in the browser), then this drawing?"
@@ -495,10 +502,10 @@ Private Function T_DE(ByVal key As String) As String
         Case "NoActiveSavedDocument": T_DE = "Kein aktives, gespeichertes Dokument."
         Case "ExportStepPrompt": T_DE = "STEP-Modell exportieren und hochladen (3D-Vorschau)?"
         Case "ExportPdfPrompt": T_DE = "PDF-Datei exportieren und hochladen?"
-        Case "UpdateExistingPrefix": T_DE = "Diese Komponenten sind bereits im PDM mit dem Status 'In Arbeit':"
+        Case "UpdateExistingPrefix": T_DE = "Diese Dateien sind bereits im PDM mit dem Status 'In Arbeit':"
         Case "UpdateExistingSuffix": T_DE = "Aktualisieren? Ihre CAD-Datei ersetzt dieselbe Revision im PDM."
-        Case "UpdateExistingStepPrompt": T_DE = "Fuer diese Komponenten ein neues STEP-Modell (3D-Vorschau) exportieren und hochladen?"
-        Case "UpdateExistingPdfPrompt": T_DE = "Fuer diese Komponenten eine neue PDF-Datei exportieren und hochladen?"
+        Case "UpdateExistingStepPrompt": T_DE = "Fuer diese Dateien ein neues STEP-Modell (3D-Vorschau) exportieren und hochladen?"
+        Case "UpdateExistingPdfPrompt": T_DE = "Fuer diese Dateien eine neue PDF-Datei exportieren und hochladen?"
         Case "UpdateExistingFailedPrefix": T_DE = "Die Komponente konnte nicht aktualisiert werden: "
         Case "Dwg_CannotIdentifyItem": T_DE = "Es konnte nicht ermittelt werden, zu welchem PDM-Element diese Zeichnung gehoert -- speichern Sie zuerst das Teil/die Baugruppe ueber EasyPDM (damit es einen Dateinamen im Format 'Nummer (Name)' erhaelt), und speichern Sie dann die Zeichnung aus dieser Datei."
         Case "Dwg_ReferencedPartNotLinkedPrompt": T_DE = "Diese Zeichnung dokumentiert ein Teil/eine Baugruppe, das/die noch nicht zu EasyPDM hochgeladen wurde. Jetzt als neues Element hochladen (Nummer/Name/Revision legen Sie im Browser fest) und dann diese Zeichnung?"
@@ -3322,15 +3329,44 @@ Function ProcessAssemblyTree(ByVal topModel As Object, ByRef edgesForTop As Coll
     ' sama rewizje (serwer podmienia wpis o tej samej nazwie), a STEP/PDF wedlug dwoch
     ' kolejnych pytan. Wydane i sprawdzane dalej nie sa ruszane -- trafiaja na liste
     ' ostrzezen, jak dotad. To samo robi EasyPDMUpload.FCMacro.
+    '
+    ' Sam dokument glowny, jesli juz jest w PDM i w pracy, wchodzi na TE SAMA liste, na gore --
+    ' inaczej zaraz potem main pytal o niego osobno (podpiac? STEP? PDF?), czyli dwa razy o
+    ' to samo (zgloszone z praktyki). Wydany albo sprawdzany zostaje przy swojej sciezce.
+    Dim topLinkedId As String
+    topLinkedId = GetLinkedItemIdOn(topModel)
+    Dim topUpdatable As Boolean
+    topUpdatable = False
+    If topLinkedId <> "" Then
+        Dim topInfo As Object
+        Set topInfo = Nothing
+        On Error Resume Next
+        Set topInfo = ApiGet("/items/" & topLinkedId)
+        On Error GoTo 0
+        If Not topInfo Is Nothing Then
+            Dim topStatus As String
+            topStatus = JsonGetString(topInfo, "status", "")
+            If topStatus <> "sprawdzany" And topStatus <> "wydany" Then
+                topUpdatable = True
+                updatableList = "- " & Mid(topModel.GetPathName(), InStrRev(topModel.GetPathName(), "\") + 1) & vbCrLf & updatableList
+            End If
+        End If
+    End If
+
     Dim updateExisting As Boolean
     Dim updateStep As Boolean
     Dim updatePdf As Boolean
-    If updatablePaths.Count > 0 Then
+    If updatablePaths.Count > 0 Or topUpdatable Then
         updateExisting = (MsgBoxFront(T("UpdateExistingPrefix") & vbCrLf & updatableList & vbCrLf & T("UpdateExistingSuffix"), _
                                       vbYesNo + vbQuestion + vbDefaultButton1, T("AppTitle")) = vbYes)
         If updateExisting Then
             updateStep = (MsgBoxFront(T("UpdateExistingStepPrompt"), vbYesNo + vbQuestion + vbDefaultButton1, T("AppTitle")) = vbYes)
             updatePdf = (MsgBoxFront(T("UpdateExistingPdfPrompt"), vbYesNo + vbQuestion + vbDefaultButton2, T("AppTitle")) = vbYes)
+        End If
+        If topUpdatable And updateExisting Then
+            gTopPresetItemId = topLinkedId
+            gTopPresetStep = updateStep
+            gTopPresetPdf = updatePdf
         End If
     End If
 
@@ -4045,6 +4081,9 @@ Function UploadPartOrAssemblyDoc(ByVal swModel As Object, ByVal filePath As Stri
     ' point at the new, PDM-named path.
     Dim edgesForTop As New Collection
     Dim lockedComponents As New Collection
+    gTopPresetItemId = ""
+    gTopPresetStep = False
+    gTopPresetPdf = False
     If itemTypeGuess = "assembly" Then
         If ProcessAssemblyTree(swModel, edgesForTop, targetFolder, lockedComponents) Then
             LogLine "Cancelled during assembly tree processing -- done."
@@ -4097,7 +4136,13 @@ Function UploadPartOrAssemblyDoc(ByVal swModel As Object, ByVal filePath As Stri
         End If
 
         Dim confirmUpdate As VbMsgBoxResult
-        confirmUpdate = MsgBoxFront(confirmText, vbYesNo + vbQuestion, T("AppTitle"))
+        Dim usePreset As Boolean
+        usePreset = (gTopPresetItemId <> "" And gTopPresetItemId = linkedItemId)
+        If usePreset Then
+            confirmUpdate = vbYes
+        Else
+            confirmUpdate = MsgBoxFront(confirmText, vbYesNo + vbQuestion, T("AppTitle"))
+        End If
         If confirmUpdate <> vbYes Then Exit Function
 
         Set resultInfo = PushToExistingItem(swModel, linkedItemId, filePath, targetFolder)
@@ -4113,9 +4158,17 @@ Function UploadPartOrAssemblyDoc(ByVal swModel As Object, ByVal filePath As Stri
             ' vbDefaultButton1/2 -- Enter alone picks the same answer the browser form
             ' would start with.
             Dim nativeExportStep As Boolean
-            nativeExportStep = (MsgBoxFront(T("ExportStepPrompt"), vbYesNo + vbQuestion + vbDefaultButton1, T("AppTitle")) = vbYes)
+            If usePreset Then
+                nativeExportStep = gTopPresetStep
+            Else
+                nativeExportStep = (MsgBoxFront(T("ExportStepPrompt"), vbYesNo + vbQuestion + vbDefaultButton1, T("AppTitle")) = vbYes)
+            End If
             Dim nativeExportPdf As Boolean
-            nativeExportPdf = (MsgBoxFront(T("ExportPdfPrompt"), vbYesNo + vbQuestion + vbDefaultButton2, T("AppTitle")) = vbYes)
+            If usePreset Then
+                nativeExportPdf = gTopPresetPdf
+            Else
+                nativeExportPdf = (MsgBoxFront(T("ExportPdfPrompt"), vbYesNo + vbQuestion + vbDefaultButton2, T("AppTitle")) = vbYes)
+            End If
 
             If nativeExportStep Then UploadStepAttachment swModel, linkedItemId, JsonGetLong(resultInfo, "itemNumber", 0), JsonGetString(resultInfo, "name", ""), JsonGetLong(resultInfo, "revision", 1)
             If nativeExportPdf Then UploadPdfAttachment swModel, linkedItemId, JsonGetLong(resultInfo, "itemNumber", 0), JsonGetString(resultInfo, "name", ""), JsonGetLong(resultInfo, "revision", 1)

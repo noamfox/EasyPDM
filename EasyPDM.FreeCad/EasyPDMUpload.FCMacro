@@ -284,9 +284,9 @@ TRANSLATIONS = {
         ),
         "export_step_prompt": "Wyeksportować i wysłać model STEP (podgląd 3D)?",
         "export_pdf_prompt": "Wyeksportować i wysłać plik PDF?",
-        "update_existing_components": "Te komponenty są już w PDM w statusie \"W pracy\":\n{lines}\n\nZaktualizować je? Plik CAD zastąpi tę samą rewizję w PDM.",
-        "update_existing_step_prompt": "Wyeksportować i wysłać na nowo model STEP (podgląd 3D) tych komponentów?",
-        "update_existing_pdf_prompt": "Wyeksportować i wysłać na nowo plik PDF tych komponentów?",
+        "update_existing_components": "Te pliki są już w PDM w statusie \"W pracy\":\n{lines}\n\nZaktualizować je? Plik CAD zastąpi tę samą rewizję w PDM.",
+        "update_existing_step_prompt": "Wyeksportować i wysłać na nowo model STEP (podgląd 3D) tych plików?",
+        "update_existing_pdf_prompt": "Wyeksportować i wysłać na nowo plik PDF tych plików?",
         "new_component_browser_prompt": (
             "Nowy element w drzewie: {name}. Kliknij OK, aby otworzyć przeglądarkę i go "
             "wprowadzić (może otworzyć się w tle — sprawdź pasek zadań)."
@@ -393,9 +393,9 @@ TRANSLATIONS = {
         ),
         "export_step_prompt": "Export and upload STEP model (3D preview)?",
         "export_pdf_prompt": "Export and upload a PDF file?",
-        "update_existing_components": "These components are already in the PDM with status \"In work\":\n{lines}\n\nUpdate them? Their CAD file replaces the same revision in the PDM.",
-        "update_existing_step_prompt": "Export and upload a fresh STEP model (3D preview) for these components?",
-        "update_existing_pdf_prompt": "Export and upload a fresh PDF for these components?",
+        "update_existing_components": "These files are already in the PDM with status \"In work\":\n{lines}\n\nUpdate them? Their CAD file replaces the same revision in the PDM.",
+        "update_existing_step_prompt": "Export and upload a fresh STEP model (3D preview) for these files?",
+        "update_existing_pdf_prompt": "Export and upload a fresh PDF for these files?",
         "new_component_browser_prompt": (
             "New component in the tree: {name}. Click OK to open the browser and fill it "
             "in (it may open in the background — check the taskbar)."
@@ -504,9 +504,9 @@ TRANSLATIONS = {
         ),
         "export_step_prompt": "STEP-Modell exportieren und hochladen (3D-Vorschau)?",
         "export_pdf_prompt": "PDF-Datei exportieren und hochladen?",
-        "update_existing_components": "Diese Komponenten sind bereits im PDM mit dem Status \"In Arbeit\":\n{lines}\n\nAktualisieren? Ihre CAD-Datei ersetzt dieselbe Revision im PDM.",
-        "update_existing_step_prompt": "Für diese Komponenten ein neues STEP-Modell (3D-Vorschau) exportieren und hochladen?",
-        "update_existing_pdf_prompt": "Für diese Komponenten eine neue PDF-Datei exportieren und hochladen?",
+        "update_existing_components": "Diese Dateien sind bereits im PDM mit dem Status \"In Arbeit\":\n{lines}\n\nAktualisieren? Ihre CAD-Datei ersetzt dieselbe Revision im PDM.",
+        "update_existing_step_prompt": "Für diese Dateien ein neues STEP-Modell (3D-Vorschau) exportieren und hochladen?",
+        "update_existing_pdf_prompt": "Für diese Dateien eine neue PDF-Datei exportieren und hochladen?",
         "new_component_browser_prompt": (
             "Neue Komponente im Baum: {name}. Klicken Sie OK, um den Browser zu öffnen "
             "und sie einzugeben (er kann im Hintergrund geöffnet werden — prüfen Sie die "
@@ -592,7 +592,7 @@ TOP_DOCUMENT_PROGRESS_KEY = "__top__"
 # Dlatego PIERWSZY komponent biegu zawsze otwiera kartę — i dopiero ta karta, znając runId,
 # obsługuje resztę bez kolejnych kart i bez okien.
 # "cancelled" -- użytkownik kliknął „Anuluj" w panelu postępu, zob. transfer_cancelled.
-_RUN = {"id": None, "tab_opened": False, "cancelled": False}
+_RUN = {"id": None, "tab_opened": False, "cancelled": False, "top_preset": None}
 
 
 def run_id():
@@ -2420,8 +2420,14 @@ def submit_via_browser(doc, target_folder):
     # (pewny link) -- tutaj o dopasowanie etykiety (mniej pewne, stąd "Nie" tu NIE anuluje
     # całości, tylko spada do zwykłego formularza w przeglądarce poniżej, gdzie to samo
     # dopasowanie i tak zostaje podpowiedziane w wyszukiwarce "Dogranie do istniejącego").
+    # Złożenie główne było już na liście "zaktualizować?" przy jego komponentach (zob.
+    # process_assembly_tree) i odpowiedź brzmiała "tak" -- nie pytamy drugi raz ani o
+    # podpięcie, ani o STEP/PDF.
+    preset = _RUN.get("top_preset")
+    if matched and preset and preset.get("item_id") != matched.get("id"):
+        preset = None
     if matched:
-        if _ask_yes_no(
+        if preset or _ask_yes_no(
             t("already_linked_confirm", number=matched.get("itemNumber"), name=matched.get("fileName")),
             default_yes=True,
         ):
@@ -2448,9 +2454,9 @@ def submit_via_browser(doc, target_folder):
             if result is None:
                 return None
 
-            if _ask_yes_no(t("export_step_prompt"), default_yes=True):
+            if preset["step"] if preset else _ask_yes_no(t("export_step_prompt"), default_yes=True):
                 _upload_step_attachment(doc, matched["id"])
-            if _ask_yes_no(t("export_pdf_prompt"), default_yes=False):
+            if preset["pdf"] if preset else _ask_yes_no(t("export_pdf_prompt"), default_yes=False):
                 _upload_pdf_attachment(doc, matched["id"])
 
             return result
@@ -2664,19 +2670,30 @@ def process_assembly_tree(top_doc, target_folder=None):
     # tę samą rewizję (serwer podmienia wpis o tej samej nazwie), a STEP/PDF według dwóch
     # kolejnych pytań. Wydane i sprawdzane dalej nie są ruszane -- tam zmiana wymaga nowej
     # rewizji albo zdjęcia ze sprawdzania i trafiają na listę ostrzeżeń, jak dotąd.
+    #
+    # Samo złożenie główne, jeśli już jest w PDM i w pracy, wchodzi na TĘ SAMĄ listę, na
+    # górę -- inaczej zaraz potem padały o nie osobne pytania (podpiąć? STEP? PDF?), czyli
+    # dwa razy to samo (zgłoszone z praktyki). Decyzja trafia do _RUN["top_preset"] i
+    # submit_via_browser używa jej zamiast własnych pytań. Wydane albo sprawdzane złożenie
+    # główne zostaje przy swojej osobnej ścieżce (nowa rewizja / blokada).
     updatable = []
     for f in order:
         m = match_existing_item(docs[f], existing_items)
         if m and m.get("status") not in ("sprawdzany", "wydany"):
             updatable.append(f)
+    top_match = match_existing_item(top_doc, existing_items)
+    top_updatable = bool(top_match) and top_match.get("status") not in ("sprawdzany", "wydany")
     update_existing = False
     update_step = update_pdf = False
-    if updatable:
-        lines = "\n".join(f"- {os.path.basename(f)}" for f in updatable)
+    if updatable or top_updatable:
+        listed = ([getattr(top_doc, "FileName", "")] if top_updatable else []) + updatable
+        lines = "\n".join(f"- {os.path.basename(f)}" for f in listed)
         update_existing = _ask_yes_no(t("update_existing_components", lines=lines), default_yes=True)
         if update_existing:
             update_step = _ask_yes_no(t("update_existing_step_prompt"), default_yes=True)
             update_pdf = _ask_yes_no(t("update_existing_pdf_prompt"), default_yes=False)
+        if top_updatable and update_existing:
+            _RUN["top_preset"] = {"item_id": top_match["id"], "step": update_step, "pdf": update_pdf}
 
     # Ścieżki UTWORZONE w tym biegu (w odróżnieniu od już-istniejących komponentów, tylko
     # podpinanych) -- gdy taki element zostanie podpięty pod swojego prawdziwego rodzica
