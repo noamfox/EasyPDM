@@ -292,15 +292,31 @@ function AddNodeDialog({
   const partsAndAssemblies = allItems.filter(
     (i) => i.itemType === "part" || i.itemType === "assembly"
   )
+  // Folder i plik nie są współdzielonymi komponentami jak Część/Złożenie -- folder POSIADA
+  // swoją zawartość. Do ponownego użycia oferujemy więc tylko te, które nie stoją w żadnej
+  // strukturze, czyli bez projektu: w takim stanie zostają po "Usuń ze struktury" i wcześniej
+  // nie było jak ich nigdzie wstawić z powrotem (zgłoszone z praktyki). Pod złożeniem i tak
+  // nie wolno (BOM to tylko Części i Złożenia -- zob. modesForParent i IsChildTypeAllowed).
+  const detachedFoldersAndFiles =
+    parentType === "assembly"
+      ? []
+      : allItems.filter((i) => (i.itemType === "folder" || i.itemType === "file") && i.projectId === null)
 
   // Dowolna Część/Złożenie z całej bazy (poza samym sobą, gdy dodajemy pod konkretnym
   // rodzicem) — ten sam komponent można wykorzystać w wielu złożeniach/projektach.
   // Na poziomie głównym (bez rodzica): wybór elementu z innego projektu przenosi go
   // (project_id) i pokazuje jako korzeń tego projektu; wybór elementu już należącego
   // do tego projektu po prostu przywraca go, jeśli był odpięty („Usuń ze struktury”).
-  const candidates = parentId
-    ? partsAndAssemblies.filter((i) => i.id !== parentId)
-    : partsAndAssemblies
+  const candidates = [...partsAndAssemblies, ...detachedFoldersAndFiles].filter((i) => i.id !== parentId)
+
+  // Folder i plik nie mają numeru, więc sama nazwa nic nie mówi o typie -- dopisujemy go.
+  function existingLabel(item: Item | undefined): string | undefined {
+    if (!item) return undefined
+    const label = candidateLabel(item)
+    return item.itemType === "folder" || item.itemType === "file"
+      ? `${label} — ${t(item.itemType === "folder" ? "itemType.folder" : "itemType.file")}`
+      : label
+  }
 
   function reset() {
     setMode(initialMode ?? lockMode ?? availableModes[0] ?? "folder")
@@ -930,8 +946,10 @@ function AddNodeDialog({
 
         {(!needsProjectPicker || projectId || skipProject) && mode === "existing" && (
           <div className="flex flex-col gap-2">
-            {parentId ? (
+            {parentId && parentType === "assembly" ? (
               <Hint>{t("addNode.existingHintWithParent")}</Hint>
+            ) : parentId ? (
+              <Hint>{t("addNode.existingHintFolder")}</Hint>
             ) : (
               <Hint>{t("addNode.existingHintNoParent")}</Hint>
             )}
@@ -945,7 +963,7 @@ function AddNodeDialog({
                   value={childId || null}
                   onValueChange={(v) => setChildId((v as string | null) ?? "")}
                   itemToStringLabel={(id: string) =>
-                    candidateLabel(candidates.find((c) => c.id === id)) ?? ""
+                    existingLabel(candidates.find((c) => c.id === id)) ?? ""
                   }
                 >
                   <ComboboxInput placeholder={t("part.searchPlaceholder")} />
@@ -954,7 +972,7 @@ function AddNodeDialog({
                     <ComboboxList>
                       {(id: string) => (
                         <ComboboxItem key={id} value={id}>
-                          {candidateLabel(candidates.find((c) => c.id === id))}
+                          {existingLabel(candidates.find((c) => c.id === id))}
                         </ComboboxItem>
                       )}
                     </ComboboxList>

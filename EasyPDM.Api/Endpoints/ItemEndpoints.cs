@@ -1394,8 +1394,32 @@ static class ItemEndpoints
             cmd.Parameters.AddWithValue("id", id);
             cmd.Parameters.AddWithValue("projectId", (object?)body.ProjectId ?? DBNull.Value);
             var affected = await cmd.ExecuteNonQueryAsync();
+            if (affected == 0)
+                return Results.NotFound();
 
-            return affected == 0 ? Results.NotFound() : Results.Ok();
+            // Zawartość bez projektu idzie razem z elementem -- ta sama zasada co przy
+            // podpinaniu pod element z projektem (POST /items/{id}/children). Dotyczy np.
+            // folderu wstawianego z powrotem po "Usuń ze struktury": jego pliki i podfoldery
+            // też są wtedy bez projektu. Elementy z własnym projektem zostają w swoim, a
+            // show_in_tree = false, bo widać je jako zawartość, nie luzem w korzeniu.
+            if (body.ProjectId is Guid targetProjectId)
+            {
+                const string adoptSql = """
+                    WITH RECURSIVE subtree AS (
+                        SELECT child_id AS id FROM item_relations WHERE parent_id = @id
+                        UNION
+                        SELECT ir.child_id FROM item_relations ir JOIN subtree s ON ir.parent_id = s.id
+                    )
+                    UPDATE items SET project_id = @projectId, show_in_tree = false
+                    WHERE id IN (SELECT id FROM subtree) AND id <> @id AND project_id IS NULL;
+                    """;
+                await using var adoptCmd = new NpgsqlCommand(adoptSql, conn);
+                adoptCmd.Parameters.AddWithValue("id", id);
+                adoptCmd.Parameters.AddWithValue("projectId", targetProjectId);
+                await adoptCmd.ExecuteNonQueryAsync();
+            }
+
+            return Results.Ok();
         });
 
         // DELETE /api/items/{id} — usuwa element CAŁKOWICIE, razem z podelementami w drzewku.
