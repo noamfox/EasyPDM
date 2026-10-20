@@ -119,11 +119,14 @@ anders gelöst:
    erhalten ihren eigenen STEP/PDF-Export (je nach eigener Checkbox-Wahl dieser
    Komponente im Browser) und einen `EasyPDM_ItemId`-Eintrag und werden automatisch
    unter ihrem Elternelement in der Stücklistenstruktur eingehängt. **Bereits verknüpfte
-   Komponenten werden nur referenziert**, nie erneut hochgeladen — unabhängig vom Status
-   — nur mit der berechneten Menge an die Stückliste angehängt; hat eine davon aktuell
-   den Status „In Prüfung" oder „Freigegeben", wird sie auch in der abschließenden
-   Erfolgsmeldung aufgeführt, als Erinnerung, dass lokale Änderungen daran NICHT gesendet
-   wurden. **Seit dem letzten Hochladen aus der Baugruppe entfernte Komponenten werden
+   Komponenten** werden mit der berechneten Menge an die Stückliste angehängt. **Solche
+   „In Arbeit" lassen sich aktualisieren**: Das Makro listet sie direkt nach der Frage
+   „Baugruppe erkannt" auf und fragt einmal; bei Ja ersetzt die CAD-Datei jeder davon
+   dieselbe Revision im PDM, und zwei weitere Fragen entscheiden, ob STEP und PDF neu
+   exportiert werden. Eine fehlgeschlagene Aktualisierung bringt eine Warnung und ein
+   rotes Kreuz im Fortschrittsfenster, der Lauf geht weiter. Komponenten „In Prüfung"
+   oder „Freigegeben" werden nie gesendet und in der abschließenden Erfolgsmeldung
+   aufgeführt, als Erinnerung, dass lokale Änderungen daran NICHT gesendet wurden. **Seit dem letzten Hochladen aus der Baugruppe entfernte Komponenten werden
    ebenfalls markiert** — für jedes Elternelement (das Hauptdokument und jede
    Unterbaugruppe) prüft das Makro vor dem Anhängen seiner aktuellen lokalen Kinder, ob
    das PDM noch eine Stücklistenbeziehung zu einem nicht mehr lokal vorhandenen Kind hat,

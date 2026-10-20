@@ -103,11 +103,14 @@ solved differently:
    FreeCAD macros" for the focus-stealing `MsgBox` shown before each tab). Newly created
    components get their own STEP/PDF export (per that component's own checkbox choice in
    the browser) and `EasyPDM_ItemId` entry, and are automatically attached under their
-   parent in the BOM structure. **Already-linked components are only ever referenced**,
-   never re-uploaded — regardless of status — just attached to the BOM with the
-   calculated quantity; if one of them currently has status "Under review" or
-   "Released", it's listed in the final success message too, as a reminder that any
-   local changes to it were NOT sent. **Components removed from the assembly since the
+   parent in the BOM structure. **Already-linked components** are attached to the BOM with
+   the calculated quantity. **Those "In work" can be updated**: the macro lists them right
+   after the "Assembly detected" question and asks once; on yes, each one's CAD file
+   replaces the same revision in the PDM, and two more questions decide whether its STEP
+   and PDF are exported again. A failed update gets a warning and a red cross in the
+   progress panel, and the run goes on. Components "Under review" or "Released" are never
+   sent and are listed in the final success message, as a reminder that any local changes
+   to them were NOT sent. **Components removed from the assembly since the
    last upload are flagged too** — for every parent (the top-level document and every
    sub-assembly), before attaching its current local children the macro checks whether
    PDM still has a BOM relation to a child no longer present locally, and asks natively

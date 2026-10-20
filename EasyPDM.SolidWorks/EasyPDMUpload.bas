@@ -335,6 +335,11 @@ Private Function T_PL(ByVal key As String) As String
         Case "NoActiveSavedDocument": T_PL = "Brak aktywnego, zapisanego dokumentu."
         Case "ExportStepPrompt": T_PL = "Wyeksportowac i wyslac model STEP (podglad 3D)?"
         Case "ExportPdfPrompt": T_PL = "Wyeksportowac i wyslac plik PDF?"
+        Case "UpdateExistingPrefix": T_PL = "Te komponenty sa juz w PDM w statusie 'W pracy':"
+        Case "UpdateExistingSuffix": T_PL = "Zaktualizowac je? Plik CAD zastapi te sama rewizje w PDM."
+        Case "UpdateExistingStepPrompt": T_PL = "Wyeksportowac i wyslac na nowo model STEP (podglad 3D) tych komponentow?"
+        Case "UpdateExistingPdfPrompt": T_PL = "Wyeksportowac i wyslac na nowo plik PDF tych komponentow?"
+        Case "UpdateExistingFailedPrefix": T_PL = "Nie udalo sie zaktualizowac komponentu: "
         Case "Dwg_CannotIdentifyItem": T_PL = "Nie udalo sie rozpoznac, do ktorego elementu PDM nalezy ten rysunek -- zapisz najpierw czesc/zlozenie przez EasyPDM (zeby dostalo nazwe w formacie 'numer (nazwa)'), a potem zapisz rysunek z tego pliku."
         Case "Dwg_ReferencedPartNotLinkedPrompt": T_PL = "Ten rysunek dokumentuje czesc/zlozenie, ktore nie zostalo jeszcze wyslane do EasyPDM. Wyslac je teraz jako nowy element (numer/nazwe/rewizje ustalisz w przegladarce), a potem ten rysunek?"
         Case "Dwg_UnlinkedReferencesBlockedPrefix": T_PL = "Ten rysunek dokumentuje wiecej niz jeden element, a "
@@ -410,6 +415,11 @@ Private Function T_EN(ByVal key As String) As String
         Case "NoActiveSavedDocument": T_EN = "No active, saved document."
         Case "ExportStepPrompt": T_EN = "Export and upload STEP model (3D preview)?"
         Case "ExportPdfPrompt": T_EN = "Export and upload a PDF file?"
+        Case "UpdateExistingPrefix": T_EN = "These components are already in the PDM with status 'In work':"
+        Case "UpdateExistingSuffix": T_EN = "Update them? Their CAD file replaces the same revision in the PDM."
+        Case "UpdateExistingStepPrompt": T_EN = "Export and upload a fresh STEP model (3D preview) for these components?"
+        Case "UpdateExistingPdfPrompt": T_EN = "Export and upload a fresh PDF for these components?"
+        Case "UpdateExistingFailedPrefix": T_EN = "Could not update the component: "
         Case "Dwg_CannotIdentifyItem": T_EN = "Could not identify which PDM item this drawing belongs to -- save the Part/Assembly through EasyPDM first (so it gets a filename in the 'number (name)' format), then save the drawing from that file."
         Case "Dwg_ReferencedPartNotLinkedPrompt": T_EN = "This drawing documents a Part/Assembly that hasn't been uploaded to EasyPDM yet. Upload it now as a new item (you'll pick the number/name/revision in the browser), then this drawing?"
         Case "Dwg_UnlinkedReferencesBlockedPrefix": T_EN = "This drawing documents more than one element, and "
@@ -485,6 +495,11 @@ Private Function T_DE(ByVal key As String) As String
         Case "NoActiveSavedDocument": T_DE = "Kein aktives, gespeichertes Dokument."
         Case "ExportStepPrompt": T_DE = "STEP-Modell exportieren und hochladen (3D-Vorschau)?"
         Case "ExportPdfPrompt": T_DE = "PDF-Datei exportieren und hochladen?"
+        Case "UpdateExistingPrefix": T_DE = "Diese Komponenten sind bereits im PDM mit dem Status 'In Arbeit':"
+        Case "UpdateExistingSuffix": T_DE = "Aktualisieren? Ihre CAD-Datei ersetzt dieselbe Revision im PDM."
+        Case "UpdateExistingStepPrompt": T_DE = "Fuer diese Komponenten ein neues STEP-Modell (3D-Vorschau) exportieren und hochladen?"
+        Case "UpdateExistingPdfPrompt": T_DE = "Fuer diese Komponenten eine neue PDF-Datei exportieren und hochladen?"
+        Case "UpdateExistingFailedPrefix": T_DE = "Die Komponente konnte nicht aktualisiert werden: "
         Case "Dwg_CannotIdentifyItem": T_DE = "Es konnte nicht ermittelt werden, zu welchem PDM-Element diese Zeichnung gehoert -- speichern Sie zuerst das Teil/die Baugruppe ueber EasyPDM (damit es einen Dateinamen im Format 'Nummer (Name)' erhaelt), und speichern Sie dann die Zeichnung aus dieser Datei."
         Case "Dwg_ReferencedPartNotLinkedPrompt": T_DE = "Diese Zeichnung dokumentiert ein Teil/eine Baugruppe, das/die noch nicht zu EasyPDM hochgeladen wurde. Jetzt als neues Element hochladen (Nummer/Name/Revision legen Sie im Browser fest) und dann diese Zeichnung?"
         Case "Dwg_UnlinkedReferencesBlockedPrefix": T_DE = "Diese Zeichnung dokumentiert mehr als ein Element, und "
@@ -3239,6 +3254,9 @@ Function ProcessAssemblyTree(ByVal topModel As Object, ByRef edgesForTop As Coll
     Dim summary As String
     Dim lineByPath As Object
     Set lineByPath = CreateObject("Scripting.Dictionary")
+    Dim updatablePaths As Object
+    Set updatablePaths = CreateObject("Scripting.Dictionary")
+    Dim updatableList As String
     Dim p As Variant
     For Each p In order
         Dim summaryLine As String
@@ -3262,6 +3280,12 @@ Function ProcessAssemblyTree(ByVal topModel As Object, ByRef edgesForTop As Coll
                 ' get updated, in case they changed one of them locally.
                 Dim summaryStatus As String
                 summaryStatus = JsonGetString(summaryLinkedInfo, "status", "")
+                ' W pracy = mozna dograc plik bez nowej rewizji -- kandydat do aktualizacji
+                ' (pytanie zaraz po oknie "Wykryto zlozenie", zob. updateExisting nizej).
+                If summaryStatus <> "sprawdzany" And summaryStatus <> "wydany" Then
+                    updatablePaths(CStr(p)) = True
+                    updatableList = updatableList & "- " & Mid(p, InStrRev(p, "\") + 1) & vbCrLf
+                End If
                 If summaryStatus = "sprawdzany" Or summaryStatus = "wydany" Then
                     lockedComponents.Add JsonGetLong(summaryLinkedInfo, "itemNumber", 0) & "(" & _
                                          JsonGetString(summaryLinkedInfo, "fileName", "") & ") -- " & StatusLabel(summaryStatus)
@@ -3291,6 +3315,24 @@ Function ProcessAssemblyTree(ByVal topModel As Object, ByRef edgesForTop As Coll
     ' skipped too by the existing pathToItemId.Exists(...) guards further down.
     Dim sendNewComponents As Boolean
     sendNewComponents = (choice = vbYes)
+
+    ' Komponenty juz w PDM byly dotad TYLKO podpinane do struktury -- bez pliku CAD, STEP-a
+    ' i PDF-a, wiec zmiana zrobiona w nich lokalnie nie szla na serwer (zgloszone z
+    ' praktyki). Jedno pytanie na caly bieg, tylko o te W PRACY: ich plik CAD zastepuje te
+    ' sama rewizje (serwer podmienia wpis o tej samej nazwie), a STEP/PDF wedlug dwoch
+    ' kolejnych pytan. Wydane i sprawdzane dalej nie sa ruszane -- trafiaja na liste
+    ' ostrzezen, jak dotad. To samo robi EasyPDMUpload.FCMacro.
+    Dim updateExisting As Boolean
+    Dim updateStep As Boolean
+    Dim updatePdf As Boolean
+    If updatablePaths.Count > 0 Then
+        updateExisting = (MsgBoxFront(T("UpdateExistingPrefix") & vbCrLf & updatableList & vbCrLf & T("UpdateExistingSuffix"), _
+                                      vbYesNo + vbQuestion + vbDefaultButton1, T("AppTitle")) = vbYes)
+        If updateExisting Then
+            updateStep = (MsgBoxFront(T("UpdateExistingStepPrompt"), vbYesNo + vbQuestion + vbDefaultButton1, T("AppTitle")) = vbYes)
+            updatePdf = (MsgBoxFront(T("UpdateExistingPdfPrompt"), vbYesNo + vbQuestion + vbDefaultButton2, T("AppTitle")) = vbYes)
+        End If
+    End If
 
     ' Lista do panelu postepu w przegladarce -- zglaszana TERAZ, bo dopiero teraz wiadomo,
     ' ze uzytkownik potwierdzil. Komponenty w kolejnosci wysylki (liscmi do gory), a na
@@ -3360,6 +3402,31 @@ Function ProcessAssemblyTree(ByVal topModel As Object, ByRef edgesForTop As Coll
 
         If existingItemId <> "" Then
             pathToItemId.Add filePath, existingItemId
+            If updateExisting And updatablePaths.Exists(CStr(filePath)) Then
+                ' Ta sama droga co reczne dogranie do istniejacego elementu. Blad jednego
+                ' komponentu nie przerywa biegu: reszta zlozenia i tak ma pojsc, a ten plik
+                ' dostaje w panelu czerwony krzyzyk.
+                Dim updRes As Object
+                Set updRes = Nothing
+                On Error Resume Next
+                Err.Clear
+                Set updRes = PushToExistingItem(childModel, existingItemId, CStr(filePath), targetFolder)
+                Dim updErr As Long
+                Dim updErrText As String
+                updErr = Err.Number
+                updErrText = Err.Description
+                On Error GoTo 0
+                If updErr <> 0 Then
+                    ProgressMark CStr(filePath), "failed"
+                    progPrevKey = ""
+                    LogLine "Updating existing component failed (" & updErr & " " & updErrText & "): " & filePath
+                    MsgBoxFront T("UpdateExistingFailedPrefix") & Mid(filePath, InStrRev(filePath, "\") + 1) & vbCrLf & updErrText, vbExclamation, T("AppTitle")
+                ElseIf Not updRes Is Nothing Then
+                    If updateStep Then UploadStepAttachment childModel, existingItemId, JsonGetLong(updRes, "itemNumber", 0), JsonGetString(updRes, "name", ""), JsonGetLong(updRes, "revision", 1)
+                    If updatePdf Then UploadPdfAttachment childModel, existingItemId, JsonGetLong(updRes, "itemNumber", 0), JsonGetString(updRes, "name", ""), JsonGetLong(updRes, "revision", 1)
+                    LogLine "Updated existing component " & existingItemId & ": " & filePath
+                End If
+            End If
             LogLine "Component already linked to PDM item " & existingItemId & ": " & filePath
         ElseIf sendNewComponents Then
             ' Same "let the browser decide new/duplicate/attach-existing" flow as the

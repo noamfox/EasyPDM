@@ -91,8 +91,10 @@ applies here identically.
    Windows' foreground focus). Newly created components get their own STEP/PDF export
    (per that component's own checkbox choice in the browser) and an `EasyPDM_LinkId`
    iProperty, and are automatically attached under their parent in the BOM structure.
-   Already-linked components are only ever referenced, never re-uploaded, regardless of
-   status. Components removed from the assembly since the last upload are flagged too,
+   Already-linked components are attached to the BOM; those "In work" can be updated —
+   the macro lists them after the "Assembly detected" question and asks once, then their
+   CAD file replaces the same revision and STEP/PDF are exported again on request.
+   "Under review" and "Released" ones are never sent. Components removed from the assembly since the last upload are flagged too,
    with a confirmation before removing their PDM link (the items themselves are never
    deleted, only their attachment under this specific parent).
 4. Checks the main document's **iProperties**:

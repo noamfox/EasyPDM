@@ -284,6 +284,9 @@ TRANSLATIONS = {
         ),
         "export_step_prompt": "Wyeksportować i wysłać model STEP (podgląd 3D)?",
         "export_pdf_prompt": "Wyeksportować i wysłać plik PDF?",
+        "update_existing_components": "Te komponenty są już w PDM w statusie \"W pracy\":\n{lines}\n\nZaktualizować je? Plik CAD zastąpi tę samą rewizję w PDM.",
+        "update_existing_step_prompt": "Wyeksportować i wysłać na nowo model STEP (podgląd 3D) tych komponentów?",
+        "update_existing_pdf_prompt": "Wyeksportować i wysłać na nowo plik PDF tych komponentów?",
         "new_component_browser_prompt": (
             "Nowy element w drzewie: {name}. Kliknij OK, aby otworzyć przeglądarkę i go "
             "wprowadzić (może otworzyć się w tle — sprawdź pasek zadań)."
@@ -390,6 +393,9 @@ TRANSLATIONS = {
         ),
         "export_step_prompt": "Export and upload STEP model (3D preview)?",
         "export_pdf_prompt": "Export and upload a PDF file?",
+        "update_existing_components": "These components are already in the PDM with status \"In work\":\n{lines}\n\nUpdate them? Their CAD file replaces the same revision in the PDM.",
+        "update_existing_step_prompt": "Export and upload a fresh STEP model (3D preview) for these components?",
+        "update_existing_pdf_prompt": "Export and upload a fresh PDF for these components?",
         "new_component_browser_prompt": (
             "New component in the tree: {name}. Click OK to open the browser and fill it "
             "in (it may open in the background — check the taskbar)."
@@ -498,6 +504,9 @@ TRANSLATIONS = {
         ),
         "export_step_prompt": "STEP-Modell exportieren und hochladen (3D-Vorschau)?",
         "export_pdf_prompt": "PDF-Datei exportieren und hochladen?",
+        "update_existing_components": "Diese Komponenten sind bereits im PDM mit dem Status \"In Arbeit\":\n{lines}\n\nAktualisieren? Ihre CAD-Datei ersetzt dieselbe Revision im PDM.",
+        "update_existing_step_prompt": "Für diese Komponenten ein neues STEP-Modell (3D-Vorschau) exportieren und hochladen?",
+        "update_existing_pdf_prompt": "Für diese Komponenten eine neue PDF-Datei exportieren und hochladen?",
         "new_component_browser_prompt": (
             "Neue Komponente im Baum: {name}. Klicken Sie OK, um den Browser zu öffnen "
             "und sie einzugeben (er kann im Hintergrund geöffnet werden — prüfen Sie die "
@@ -2648,6 +2657,27 @@ def process_assembly_tree(top_doc, target_folder=None):
     # pustą listą nowych) -- prawdziwy błąd, zgłoszony w praktyce.
     send_new_components = choice == QtWidgets.QMessageBox.Yes
 
+    # Komponenty, które już są w PDM, były dotąd TYLKO podpinane do struktury -- bez pliku
+    # CAD, STEP-a i PDF-a. Jeśli ktoś je zmienił lokalnie, zmiana nie szła na serwer
+    # (zgłoszone z praktyki: "nie ma pytania o stepy elementów złożenia, a mogą się
+    # zmienić"). Teraz jedno pytanie na cały bieg, tylko o te W PRACY: ich plik CAD zastępuje
+    # tę samą rewizję (serwer podmienia wpis o tej samej nazwie), a STEP/PDF według dwóch
+    # kolejnych pytań. Wydane i sprawdzane dalej nie są ruszane -- tam zmiana wymaga nowej
+    # rewizji albo zdjęcia ze sprawdzania i trafiają na listę ostrzeżeń, jak dotąd.
+    updatable = []
+    for f in order:
+        m = match_existing_item(docs[f], existing_items)
+        if m and m.get("status") not in ("sprawdzany", "wydany"):
+            updatable.append(f)
+    update_existing = False
+    update_step = update_pdf = False
+    if updatable:
+        lines = "\n".join(f"- {os.path.basename(f)}" for f in updatable)
+        update_existing = _ask_yes_no(t("update_existing_components", lines=lines), default_yes=True)
+        if update_existing:
+            update_step = _ask_yes_no(t("update_existing_step_prompt"), default_yes=True)
+            update_pdf = _ask_yes_no(t("update_existing_pdf_prompt"), default_yes=False)
+
     # Ścieżki UTWORZONE w tym biegu (w odróżnieniu od już-istniejących komponentów, tylko
     # podpinanych) -- gdy taki element zostanie podpięty pod swojego prawdziwego rodzica
     # poniżej, znika z korzenia projektu (show_in_tree=False). Nigdy nie był niezależnym
@@ -2693,6 +2723,24 @@ def process_assembly_tree(top_doc, target_folder=None):
             matched_status = matched.get("status")
             if matched_status in ("sprawdzany", "wydany"):
                 locked_matches.append((matched.get("itemNumber"), matched.get("fileName"), matched_status))
+            elif update_existing:
+                # Ta sama droga co ręczne dogranie do istniejącego elementu. Element jest
+                # w pracy, więc pytania o nową rewizję nie będzie -- a gdyby status zdążył się
+                # zmienić, push_to_existing_item zwraca None i komponent zostaje tylko
+                # podpięty. Błąd jednego komponentu nie przerywa biegu: reszta złożenia
+                # i tak ma pójść, a ten plik dostaje w panelu czerwony krzyżyk.
+                try:
+                    push_to_existing_item(
+                        doc, matched["id"], lambda: None,
+                        target_folder=target_folder, export_step=update_step, export_pdf=update_pdf,
+                    )
+                except Exception as e:
+                    progress_mark(file_path, "failed")
+                    progress_prev[0] = None
+                    QtWidgets.QMessageBox.warning(
+                        _main_window(), t("pdm_title"),
+                        t("upload_component_failed", file=os.path.basename(file_path), error=e),
+                    )
         elif not send_new_components:
             # Nie tworzymy nowych komponentów w tym biegu ("No" wyżej) -- pomiń, bez dodania
             # do doc_to_item_id. Każda relacja z udziałem tego pliku (jako rodzic lub

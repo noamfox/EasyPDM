@@ -93,8 +93,10 @@ stosuje się tutaj identycznie.
    uruchomienie makra może niezawodnie przejąć fokus Windows). Nowo utworzone komponenty
    dostają własny eksport STEP/PDF (wg własnego wyboru checkboxa tego komponentu w
    przeglądarce) oraz iProperty `EasyPDM_LinkId`, i są automatycznie dołączane pod swoim
-   rodzicem w strukturze BOM. Już podpięte komponenty są tylko referencjonowane, nigdy
-   ponownie wysyłane, niezależnie od statusu. Komponenty usunięte ze złożenia od ostatniego
+   rodzicem w strukturze BOM. Już podpięte komponenty są podpinane do BOM-u; te „W
+   pracy” można zaktualizować — makro wypisuje je po pytaniu „Wykryto złożenie” i pyta raz,
+   a potem ich plik CAD zastępuje tę samą rewizję, a STEP/PDF są eksportowane na nowo na
+   życzenie. „Sprawdzane” i „Wydane” nigdy nie są wysyłane. Komponenty usunięte ze złożenia od ostatniego
    wysłania też są zgłaszane, z prośbą o potwierdzenie przed usunięciem ich powiązania z
    PDM (same elementy nigdy nie są usuwane, tylko ich dołączenie pod tym konkretnym
    rodzicem).

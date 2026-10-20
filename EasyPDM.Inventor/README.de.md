@@ -99,8 +99,11 @@ Verhaltensbeschreibung in deren eigenem README gilt hier identisch.
    Komponenten erhalten ihren eigenen STEP/PDF-Export (gemäß der eigenen
    Kontrollkästchen-Wahl dieser Komponente im Browser) und eine `EasyPDM_LinkId`-
    iProperty und werden automatisch unter ihrem übergeordneten Element in der
-   Stücklistenstruktur angehängt. Bereits verknüpfte Komponenten werden nur referenziert,
-   nie erneut hochgeladen, unabhängig vom Status. Seit dem letzten Upload aus der
+   Stücklistenstruktur angehängt. Bereits verknüpfte Komponenten werden an die Stückliste
+   angehängt; solche „In Arbeit" lassen sich aktualisieren — das Makro listet sie nach der
+   Frage „Baugruppe erkannt" auf und fragt einmal, dann ersetzt ihre CAD-Datei dieselbe
+   Revision, und STEP/PDF werden auf Wunsch neu exportiert. „In Prüfung" und
+   „Freigegeben" werden nie gesendet. Seit dem letzten Upload aus der
    Baugruppe entfernte Komponenten werden ebenfalls gemeldet, mit einer Bestätigung vor
    dem Entfernen ihrer PDM-Verknüpfung (die Elemente selbst werden nie gelöscht, nur ihre
    Zuordnung unter diesem speziellen übergeordneten Element).
