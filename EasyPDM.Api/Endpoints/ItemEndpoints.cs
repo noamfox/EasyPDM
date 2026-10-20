@@ -643,8 +643,9 @@ static class ItemEndpoints
                             reader.GetString(2)),
                         ["showInTree"] = reader.GetBoolean(10),
                         // Czy element stoi gdzieś w strukturze jako czyjeś dziecko (folder,
-                        // złożenie). Razem z showInTree mówi, czy element jest "odłożony" -- nie
-                        // ma go w żadnym drzewie i można go wstawić z powrotem jako istniejący.
+                        // złożenie). Samo showInTree tego nie mówi: false ma zarówno element
+                        // ukryty w korzeniu przez "Usuń ze struktury", jak i ten, który stoi w
+                        // folderze. Razem odróżniają element odłożony od wstawionego gdzieś.
                         ["hasParent"] = reader.GetBoolean(20),
                         ["status"] = reader.IsDBNull(11) ? null : reader.GetString(11),
                         ["isLocked"] = IsLocked(reader.GetString(7), reader.IsDBNull(11) ? null : reader.GetString(11)),
