@@ -584,7 +584,8 @@ static class ItemEndpoints
                        i.root_position, i.owner_id, i.owner_locked, u.display_name, i.item_number_digits,
                        EXISTS (SELECT 1 FROM item_attachments ia
                                WHERE ia.item_id = i.id AND ia.preview_role IS NOT NULL) AS kind_locked,
-                       i.item_number_with_name
+                       i.item_number_with_name,
+                       EXISTS (SELECT 1 FROM item_relations r WHERE r.child_id = i.id) AS has_parent
                 FROM items i
                 LEFT JOIN users u ON u.id = i.owner_id
                 WHERE (@search::text IS NULL OR i.file_name ILIKE '%' || @search || '%'
@@ -641,6 +642,10 @@ static class ItemEndpoints
                             reader.IsDBNull(19) ? null : reader.GetBoolean(19),
                             reader.GetString(2)),
                         ["showInTree"] = reader.GetBoolean(10),
+                        // Czy element stoi gdzieś w strukturze jako czyjeś dziecko (folder,
+                        // złożenie). Razem z showInTree mówi, czy element jest "odłożony" -- nie
+                        // ma go w żadnym drzewie i można go wstawić z powrotem jako istniejący.
+                        ["hasParent"] = reader.GetBoolean(20),
                         ["status"] = reader.IsDBNull(11) ? null : reader.GetString(11),
                         ["isLocked"] = IsLocked(reader.GetString(7), reader.IsDBNull(11) ? null : reader.GetString(11)),
                         ["revisionNumber"] = reader.IsDBNull(12) ? null : reader.GetInt32(12),

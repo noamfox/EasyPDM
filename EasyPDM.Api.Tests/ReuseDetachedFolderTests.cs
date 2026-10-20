@@ -48,6 +48,27 @@ public class ReuseDetachedFolderTests
         Assert.Equal((projectId, false), await ReadAsync(client, inner));
     }
 
+    // "Usuń ze struktury" na korzeniu zostawia projekt i tylko gasi showInTree, więc samo
+    // projectId == null nie wystarcza do rozpoznania odłożonego folderu. hasParent odróżnia go
+    // od folderu ukrytego dlatego, że stoi w innym folderze.
+    [Fact]
+    public async Task Lista_elementow_mowi_czy_element_ma_rodzica()
+    {
+        await using var factory = new EasyPDMWebApplicationFactory();
+        using var client = factory.CreateClient();
+        await client.LoginAsync(AdminUsername, AdminPassword);
+
+        var projectId = await client.CreateProjectAsync($"Projekt {Guid.NewGuid()}");
+        var root = await client.CreateNodeAsync(projectId, "Korzen", "folder");
+        var inside = await client.CreateNodeAsync(projectId, "Wewnatrz", "folder", root);
+
+        var items = await client.GetFromJsonAsync<JsonElement>("/api/items");
+        bool HasParent(Guid id) => items.EnumerateArray()
+            .Single(i => i.GetProperty("id").GetGuid() == id).GetProperty("hasParent").GetBoolean();
+        Assert.False(HasParent(root));
+        Assert.True(HasParent(inside));
+    }
+
     [Fact]
     public async Task Folder_przeniesiony_do_korzenia_projektu_zabiera_zawartosc()
     {

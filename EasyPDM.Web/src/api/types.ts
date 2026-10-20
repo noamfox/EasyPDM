@@ -184,6 +184,8 @@ export interface Item {
   // a ich nazwy zawierają jego numer, który od rodzaju zależy (zob. PropertyEndpoints).
   kindLocked: boolean
   showInTree: boolean
+  // Czy element jest czyimś dzieckiem w strukturze (folder, złożenie) -- zob. GET /api/items.
+  hasParent?: boolean
   status: ItemStatus | null
   revisionNumber: number | null
   revisionLabel: string | null

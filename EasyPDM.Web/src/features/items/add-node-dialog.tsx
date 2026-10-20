@@ -293,14 +293,21 @@ function AddNodeDialog({
     (i) => i.itemType === "part" || i.itemType === "assembly"
   )
   // Folder i plik nie są współdzielonymi komponentami jak Część/Złożenie -- folder POSIADA
-  // swoją zawartość. Do ponownego użycia oferujemy więc tylko te, które nie stoją w żadnej
-  // strukturze, czyli bez projektu: w takim stanie zostają po "Usuń ze struktury" i wcześniej
-  // nie było jak ich nigdzie wstawić z powrotem (zgłoszone z praktyki). Pod złożeniem i tak
-  // nie wolno (BOM to tylko Części i Złożenia -- zob. modesForParent i IsChildTypeAllowed).
+  // swoją zawartość. Do ponownego użycia oferujemy więc tylko te, które nie stoją w żadnym
+  // drzewie: nie mają rodzica i nie są widocznym korzeniem. "Usuń ze struktury" zostawia je
+  // w jednym z dwóch stanów -- odpięte spod rodzica tracą projekt, a usunięte z korzenia
+  // zachowują projekt i tylko znikają z drzewa (showInTree = false) -- i wcześniej nie było
+  // jak ich nigdzie wstawić z powrotem (zgłoszone z praktyki). Pod złożeniem i tak nie wolno
+  // (BOM to tylko Części i Złożenia -- zob. modesForParent i IsChildTypeAllowed).
   const detachedFoldersAndFiles =
     parentType === "assembly"
       ? []
-      : allItems.filter((i) => (i.itemType === "folder" || i.itemType === "file") && i.projectId === null)
+      : allItems.filter(
+          (i) =>
+            (i.itemType === "folder" || i.itemType === "file") &&
+            !i.hasParent &&
+            (i.projectId === null || !i.showInTree)
+        )
 
   // Dowolna Część/Złożenie z całej bazy (poza samym sobą, gdy dodajemy pod konkretnym
   // rodzicem) — ten sam komponent można wykorzystać w wielu złożeniach/projektach.
@@ -487,7 +494,18 @@ function AddNodeDialog({
           setSubmitting(false)
           return
         }
-        await api.addChild(parentId, childId, qty)
+        const target = candidates.find((c) => c.id === childId)
+        const owned = target && (target.itemType === "folder" || target.itemType === "file")
+        // Folder/plik z innego projektu (odłożony z jego korzenia) przechodzi do tego -- jest
+        // POSIADANY przez nowy folder, a nie współdzielony jak Część. Przeniesienie pokazuje
+        // go w korzeniu, więc zaraz potem gasimy to: ma być widoczny tylko w folderze.
+        if (owned && target.projectId !== null && target.projectId !== projectId && projectId) {
+          await api.moveItemToProject(childId, projectId)
+          await api.addChild(parentId, childId, qty)
+          await api.setShowInTree(childId, false)
+        } else {
+          await api.addChild(parentId, childId, qty)
+        }
       } else {
         // Bez rodzica: element z innego projektu trzeba przenieść (project_id) i pokazać jako
         // korzeń; element już należący do tego projektu — po prostu przywracamy jego widoczność.
