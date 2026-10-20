@@ -1,4 +1,5 @@
-import { type ReactElement, useEffect, useState } from "react"
+import { type ReactElement, useEffect, useRef, useState } from "react"
+import { Upload } from "lucide-react"
 
 import { api, ApiError } from "@/api/client"
 import { itemDisplayLabel, type Item, type ItemType, type Project } from "@/api/types"
@@ -271,6 +272,7 @@ function AddNodeDialog({
 
   // Inny plik
   const [file, setFile] = useState<File | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [propsText, setPropsText] = useState("")
 
   // Istniejący element
@@ -881,11 +883,29 @@ function AddNodeDialog({
         {(!needsProjectPicker || projectId || skipProject) && mode === "file" && (
           <div className="flex flex-col gap-2">
             <Label htmlFor="node-file">{t("addNode.fileOptional")}</Label>
-            <Input
+            {/* Natywne pole pliku pokazuje "Przeglądaj… / Nie wybrano pliku" w języku
+                PRZEGLĄDARKI, nie aplikacji, i strona nie ma jak tego przetłumaczyć (zgłoszone:
+                polski napis przy angielskim interfejsie). Dlatego ukryte, a obok własny
+                przycisk z tłumaczeń i nazwa wybranego pliku -- jak w pozostałych miejscach. */}
+            <input
+              ref={fileInputRef}
               id="node-file"
               type="file"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              className="hidden"
+              onChange={(e) => {
+                const picked = e.target.files?.[0] ?? null
+                e.target.value = ""
+                if (picked) setFile(picked)
+              }}
             />
+            <div className="flex min-w-0 items-center gap-2">
+              <Button type="button" size="sm" variant="outline" onClick={() => fileInputRef.current?.click()}>
+                <Upload className="size-3.5" /> {t("addNode.chooseFile")}
+              </Button>
+              <span className="truncate text-sm text-muted-foreground">
+                {file ? file.name : t("addNode.noFileChosen")}
+              </span>
+            </div>
             {!file && (
               <>
                 <Label htmlFor="node-file-name">{t("addNode.nameIfNoFile")}</Label>
