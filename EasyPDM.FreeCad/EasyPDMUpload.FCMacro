@@ -245,6 +245,13 @@ TRANSLATIONS = {
         "password_label": "Hasło:",
         "login_button": "Zaloguj",
         "cancel_button": "Anuluj",
+        "assembly_update_note": "Pliki już będące w PDM w statusie \"W pracy\" zostaną zaktualizowane (plik CAD zastąpi tę samą rewizję).",
+        "update_step_checkbox": "Wyślij na nowo STEP (podgląd 3D) plików już będących w PDM",
+        "update_pdf_checkbox": "Wyślij na nowo PDF plików już będących w PDM",
+        "not_sent_suffix": " — {status}, nie zostanie wysłany",
+        "locked_not_sent": "Tych plików nie wyślemy — są w PDM ze statusem, który blokuje zmiany. Żeby je zaktualizować, utwórz nową rewizję albo zdejmij je ze sprawdzania:\n\n{lines}",
+        "yes_button": "Tak",
+        "no_button": "Nie",
         "login_missing_fields": "Podaj nazwę użytkownika i hasło.",
         "target_folder_dialog_title": "Wyślij do PDM",
         "logged_in_as": "Zalogowano jako: {name}",
@@ -284,9 +291,6 @@ TRANSLATIONS = {
         ),
         "export_step_prompt": "Wyeksportować i wysłać model STEP (podgląd 3D)?",
         "export_pdf_prompt": "Wyeksportować i wysłać plik PDF?",
-        "update_existing_components": "Te pliki są już w PDM w statusie \"W pracy\":\n{lines}\n\nZaktualizować je? Plik CAD zastąpi tę samą rewizję w PDM.",
-        "update_existing_step_prompt": "Wyeksportować i wysłać na nowo model STEP (podgląd 3D) tych plików?",
-        "update_existing_pdf_prompt": "Wyeksportować i wysłać na nowo plik PDF tych plików?",
         "new_component_browser_prompt": (
             "Nowy element w drzewie: {name}. Kliknij OK, aby otworzyć przeglądarkę i go "
             "wprowadzić (może otworzyć się w tle — sprawdź pasek zadań)."
@@ -354,6 +358,13 @@ TRANSLATIONS = {
         "password_label": "Password:",
         "login_button": "Log in",
         "cancel_button": "Cancel",
+        "assembly_update_note": "Files already in the PDM with status \"In work\" will be updated (their CAD file replaces the same revision).",
+        "update_step_checkbox": "Upload a fresh STEP (3D preview) for files already in the PDM",
+        "update_pdf_checkbox": "Upload a fresh PDF for files already in the PDM",
+        "not_sent_suffix": " — {status}, will not be sent",
+        "locked_not_sent": "These files will not be sent — they are in the PDM with a status that blocks changes. To update them, create a new revision or take them out of review:\n\n{lines}",
+        "yes_button": "Yes",
+        "no_button": "No",
         "login_missing_fields": "Enter your username and password.",
         "target_folder_dialog_title": "Send to PDM",
         "logged_in_as": "Logged in as: {name}",
@@ -393,9 +404,6 @@ TRANSLATIONS = {
         ),
         "export_step_prompt": "Export and upload STEP model (3D preview)?",
         "export_pdf_prompt": "Export and upload a PDF file?",
-        "update_existing_components": "These files are already in the PDM with status \"In work\":\n{lines}\n\nUpdate them? Their CAD file replaces the same revision in the PDM.",
-        "update_existing_step_prompt": "Export and upload a fresh STEP model (3D preview) for these files?",
-        "update_existing_pdf_prompt": "Export and upload a fresh PDF for these files?",
         "new_component_browser_prompt": (
             "New component in the tree: {name}. Click OK to open the browser and fill it "
             "in (it may open in the background — check the taskbar)."
@@ -463,6 +471,13 @@ TRANSLATIONS = {
         "password_label": "Passwort:",
         "login_button": "Anmelden",
         "cancel_button": "Abbrechen",
+        "assembly_update_note": "Dateien, die bereits im PDM mit dem Status \"In Arbeit\" sind, werden aktualisiert (ihre CAD-Datei ersetzt dieselbe Revision).",
+        "update_step_checkbox": "Für Dateien, die bereits im PDM sind, STEP (3D-Vorschau) neu hochladen",
+        "update_pdf_checkbox": "Für Dateien, die bereits im PDM sind, PDF neu hochladen",
+        "not_sent_suffix": " — {status}, wird nicht gesendet",
+        "locked_not_sent": "Diese Dateien werden nicht gesendet — sie sind im PDM mit einem Status, der Änderungen sperrt. Um sie zu aktualisieren, eine neue Revision anlegen oder sie aus der Prüfung nehmen:\n\n{lines}",
+        "yes_button": "Ja",
+        "no_button": "Nein",
         "login_missing_fields": "Geben Sie Benutzername und Passwort ein.",
         "target_folder_dialog_title": "An PDM senden",
         "logged_in_as": "Angemeldet als: {name}",
@@ -504,9 +519,6 @@ TRANSLATIONS = {
         ),
         "export_step_prompt": "STEP-Modell exportieren und hochladen (3D-Vorschau)?",
         "export_pdf_prompt": "PDF-Datei exportieren und hochladen?",
-        "update_existing_components": "Diese Dateien sind bereits im PDM mit dem Status \"In Arbeit\":\n{lines}\n\nAktualisieren? Ihre CAD-Datei ersetzt dieselbe Revision im PDM.",
-        "update_existing_step_prompt": "Für diese Dateien ein neues STEP-Modell (3D-Vorschau) exportieren und hochladen?",
-        "update_existing_pdf_prompt": "Für diese Dateien eine neue PDF-Datei exportieren und hochladen?",
         "new_component_browser_prompt": (
             "Neue Komponente im Baum: {name}. Klicken Sie OK, um den Browser zu öffnen "
             "und sie einzugeben (er kann im Hintergrund geöffnet werden — prüfen Sie die "
@@ -592,7 +604,7 @@ TOP_DOCUMENT_PROGRESS_KEY = "__top__"
 # Dlatego PIERWSZY komponent biegu zawsze otwiera kartę — i dopiero ta karta, znając runId,
 # obsługuje resztę bez kolejnych kart i bez okien.
 # "cancelled" -- użytkownik kliknął „Anuluj" w panelu postępu, zob. transfer_cancelled.
-_RUN = {"id": None, "tab_opened": False, "cancelled": False, "top_preset": None}
+_RUN = {"id": None, "tab_opened": False, "cancelled": False, "top_preset": None, "locked_shown": False}
 
 
 def run_id():
@@ -2544,6 +2556,61 @@ def sync_stale_children(parent_item_id, local_child_ids):
             pass
 
 
+class AssemblyDetectedDialog(QtWidgets.QDialog):
+    """Jedno okno decydujące o całym złożeniu: drzewo plików i Tak/Nie/Anuluj, a gdy w
+    złożeniu są pliki już będące w PDM w pracy (do zaktualizowania) -- dodatkowo dwa pola
+    STEP/PDF dla nich. Zastępuje ciąg osobnych okien "wysłać?", "zaktualizować?", "STEP?",
+    "PDF?" (zgłoszone z praktyki: dwa okna pytały o to samo). Pola wyboru, a nie kolejne
+    pytania Tak/Nie, bo QMessageBox ich nie ma -- stąd własne okno."""
+
+    def __init__(self, body, show_update_options, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(t("assembly_detected_title"))
+        self.setMinimumWidth(460)
+        layout = QtWidgets.QVBoxLayout(self)
+
+        label = QtWidgets.QLabel(body)
+        label.setTextFormat(QtCore.Qt.PlainText)
+        label.setWordWrap(True)
+        # Długie złożenie nie może rozepchać okna poza ekran -- treść w przewijanym polu.
+        scroll = QtWidgets.QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QtWidgets.QFrame.NoFrame)
+        scroll.setWidget(label)
+        scroll.setMaximumHeight(420)
+        layout.addWidget(scroll)
+
+        self.step_box = self.pdf_box = None
+        if show_update_options:
+            self.step_box = QtWidgets.QCheckBox(t("update_step_checkbox"))
+            self.step_box.setChecked(True)
+            self.pdf_box = QtWidgets.QCheckBox(t("update_pdf_checkbox"))
+            self.pdf_box.setChecked(False)
+            layout.addWidget(self.step_box)
+            layout.addWidget(self.pdf_box)
+
+        buttons = QtWidgets.QDialogButtonBox()
+        yes = buttons.addButton(t("yes_button"), QtWidgets.QDialogButtonBox.YesRole)
+        no = buttons.addButton(t("no_button"), QtWidgets.QDialogButtonBox.NoRole)
+        cancel = buttons.addButton(t("cancel_button"), QtWidgets.QDialogButtonBox.RejectRole)
+        yes.setDefault(True)
+        self.choice = "cancel"
+        yes.clicked.connect(lambda: self._done("yes"))
+        no.clicked.connect(lambda: self._done("no"))
+        cancel.clicked.connect(lambda: self._done("cancel"))
+        layout.addWidget(buttons)
+
+    def _done(self, choice):
+        self.choice = choice
+        self.accept() if choice != "cancel" else self.reject()
+
+    def export_step(self):
+        return bool(self.step_box and self.step_box.isChecked())
+
+    def export_pdf(self):
+        return bool(self.pdf_box and self.pdf_box.isChecked())
+
+
 def _tree_summary_lines(top_file, order, edges, make_line):
     """Lista do okna "Wykryto złożenie" ułożona w drzewo z wcięciami: złożenie główne, pod
     nim jego części i podzłożenia, pod podzłożeniem jego części -- o poziom głębiej każde.
@@ -2627,73 +2694,61 @@ def process_assembly_tree(top_doc, target_folder=None):
     # "rozpozna" ją jako STARY element, zamiast utworzyć nowy (potwierdzone w praktyce na
     # analogicznym mechanizmie w makrze SolidWorks -- tam przez Custom Property zamiast
     # etykiety, ale ryzyko jest identyczne).
+    # Rozpoznanie każdego pliku RAZ, przed oknem: do dopisków na liście, do tego, czy
+    # pokazać pola STEP/PDF, i do listy plików, których nie wyślemy.
+    match_by_file = {f: match_existing_item(docs[f], existing_items) for f in order}
+    top_match = match_existing_item(top_doc, existing_items)
+    blocking = ("sprawdzany", "wydany")
+    status_labels = {"sprawdzany": t("status_label_sprawdzany"), "wydany": t("status_label_wydany")}
+
     def summary_line(f, depth, qty=1):
         line = "    " * depth + f"- {os.path.basename(f)}"
         if qty > 1:
             line += f" ×{qty}"
-        if f in docs:
-            matched_for_summary = match_existing_item(docs[f], existing_items)
-            if matched_for_summary:
-                line += t(
-                    "already_in_pdm_as",
-                    number=matched_for_summary.get("itemNumber"),
-                    name=matched_for_summary.get("fileName"),
-                )
+        m = match_by_file.get(f)
+        if m:
+            line += t("already_in_pdm_as", number=m.get("itemNumber"), name=m.get("fileName"))
+            if m.get("status") in blocking:
+                line += t("not_sent_suffix", status=status_labels[m.get("status")])
         return line
 
     summary = "\n".join(_tree_summary_lines(getattr(top_doc, "FileName", ""), order, edges, summary_line))
 
-    choice = QtWidgets.QMessageBox.question(
-        None,
-        t("assembly_detected_title"),
-        t("assembly_detected_body", count=len(order), summary=summary),
-        QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No | QtWidgets.QMessageBox.Cancel,
-        QtWidgets.QMessageBox.Yes,
-    )
-    if choice == QtWidgets.QMessageBox.Cancel:
-        return [], True, []
-    # "No" pomija WYŁĄCZNIE tworzenie/wysyłanie komponentów jeszcze nie podlinkowanych do
-    # PDM (zob. send_new_components w pętli niżej) -- już-podlinkowane komponenty i tak
-    # trzeba podpiąć do struktury, bo nic w nich się nie zmienia (żaden plik nie jest
-    # wysyłany, tylko relacja BOM) -- dokładnie ten sam podział co
-    # EasyPDM.SolidWorks/EasyPDMUpload.bas ProcessAssemblyTree (sendNewComponents), i zgodny
-    # z opisem `locked_matches` w docstringu wyżej ("drzewo złożenia w ogóle nie aktualizuje
-    # już-istniejących komponentów, tylko podpina nowe"). Wcześniej "No" tutaj przez pomyłkę
-    # porzucało też WSZYSTKIE już-podlinkowane komponenty (return [] zamiast kontynuować z
-    # pustą listą nowych) -- prawdziwy błąd, zgłoszony w praktyce.
-    send_new_components = choice == QtWidgets.QMessageBox.Yes
+    # Pliki już w PDM i w pracy -- przy "Tak" są aktualizowane bez dodatkowego pytania (plik
+    # CAD zastępuje tę samą rewizję, serwer podmienia wpis o tej samej nazwie), a STEP/PDF
+    # według pól w tym samym oknie. Dotąd były tylko podpinane do struktury, więc lokalne
+    # zmiany w nich nie szły na serwer. Złożenie główne też, jeśli jest w pracy -- jego
+    # decyzja trafia do _RUN["top_preset"], żeby submit_via_browser nie pytał drugi raz.
+    updatable = [f for f in order if match_by_file[f] and match_by_file[f].get("status") not in blocking]
+    top_updatable = bool(top_match) and top_match.get("status") not in blocking
+    locked = [f for f in order if match_by_file[f] and match_by_file[f].get("status") in blocking]
 
-    # Komponenty, które już są w PDM, były dotąd TYLKO podpinane do struktury -- bez pliku
-    # CAD, STEP-a i PDF-a. Jeśli ktoś je zmienił lokalnie, zmiana nie szła na serwer
-    # (zgłoszone z praktyki: "nie ma pytania o stepy elementów złożenia, a mogą się
-    # zmienić"). Teraz jedno pytanie na cały bieg, tylko o te W PRACY: ich plik CAD zastępuje
-    # tę samą rewizję (serwer podmienia wpis o tej samej nazwie), a STEP/PDF według dwóch
-    # kolejnych pytań. Wydane i sprawdzane dalej nie są ruszane -- tam zmiana wymaga nowej
-    # rewizji albo zdjęcia ze sprawdzania i trafiają na listę ostrzeżeń, jak dotąd.
-    #
-    # Samo złożenie główne, jeśli już jest w PDM i w pracy, wchodzi na TĘ SAMĄ listę, na
-    # górę -- inaczej zaraz potem padały o nie osobne pytania (podpiąć? STEP? PDF?), czyli
-    # dwa razy to samo (zgłoszone z praktyki). Decyzja trafia do _RUN["top_preset"] i
-    # submit_via_browser używa jej zamiast własnych pytań. Wydane albo sprawdzane złożenie
-    # główne zostaje przy swojej osobnej ścieżce (nowa rewizja / blokada).
-    updatable = []
-    for f in order:
-        m = match_existing_item(docs[f], existing_items)
-        if m and m.get("status") not in ("sprawdzany", "wydany"):
-            updatable.append(f)
-    top_match = match_existing_item(top_doc, existing_items)
-    top_updatable = bool(top_match) and top_match.get("status") not in ("sprawdzany", "wydany")
-    update_existing = False
-    update_step = update_pdf = False
+    body = t("assembly_detected_body", count=len(order), summary=summary)
     if updatable or top_updatable:
-        listed = ([getattr(top_doc, "FileName", "")] if top_updatable else []) + updatable
-        lines = "\n".join(f"- {os.path.basename(f)}" for f in listed)
-        update_existing = _ask_yes_no(t("update_existing_components", lines=lines), default_yes=True)
-        if update_existing:
-            update_step = _ask_yes_no(t("update_existing_step_prompt"), default_yes=True)
-            update_pdf = _ask_yes_no(t("update_existing_pdf_prompt"), default_yes=False)
-        if top_updatable and update_existing:
-            _RUN["top_preset"] = {"item_id": top_match["id"], "step": update_step, "pdf": update_pdf}
+        body += "\n\n" + t("assembly_update_note")
+    dialog = AssemblyDetectedDialog(body, bool(updatable or top_updatable), _main_window())
+    dialog.exec()
+    if dialog.choice == "cancel":
+        return [], True, []
+    # "Nie" pomija tworzenie nowych komponentów i aktualizację istniejących -- już
+    # podlinkowane i tak trafiają do struktury (podpięcie bez wysyłania pliku), dokładnie
+    # ten sam podział co EasyPDM.SolidWorks/EasyPDMUpload.bas ProcessAssemblyTree.
+    send_new_components = dialog.choice == "yes"
+    update_existing = send_new_components and bool(updatable or top_updatable)
+    update_step = dialog.export_step()
+    update_pdf = dialog.export_pdf()
+    if top_updatable and update_existing:
+        _RUN["top_preset"] = {"item_id": top_match["id"], "step": update_step, "pdf": update_pdf}
+
+    # Drugie okno tylko informuje -- wysłanie zablokowanych plików wymaga nowej rewizji albo
+    # zdjęcia ze sprawdzania, czego makro samo nie zrobi. Pokazane tutaj, więc na końcu
+    # biegu nie powtarzamy tej samej listy (zob. _RUN["locked_shown"] w run()).
+    if send_new_components and locked:
+        lines = "\n".join(
+            f"- {os.path.basename(f)} — {status_labels[match_by_file[f].get('status')]}" for f in locked
+        )
+        QtWidgets.QMessageBox.information(_main_window(), t("pdm_title"), t("locked_not_sent", lines=lines))
+        _RUN["locked_shown"] = True
 
     # Ścieżki UTWORZONE w tym biegu (w odróżnieniu od już-istniejących komponentów, tylko
     # podpinanych) -- gdy taki element zostanie podpięty pod swojego prawdziwego rodzica
@@ -3087,7 +3142,7 @@ def _send_and_link(doc, target_folder):
     # "sprawdzany"/"wydany". Takich makro NIGDY nie aktualizuje, więc jeśli ktoś zmienił taki
     # plik lokalnie, jego zmiana NIE poszła na serwer — a raport z listy plików tego nie
     # powie, bo z jego punktu widzenia nic się nie wydarzyło.
-    if locked_matches:
+    if locked_matches and not _RUN["locked_shown"]:
         status_labels = {"sprawdzany": t("status_label_sprawdzany"), "wydany": t("status_label_wydany")}
         lines = "\n".join(
             f"- {number}({name}) -- {status_labels.get(status, status)}"

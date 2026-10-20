@@ -104,13 +104,12 @@ solved differently:
    components get their own STEP/PDF export (per that component's own checkbox choice in
    the browser) and `EasyPDM_ItemId` entry, and are automatically attached under their
    parent in the BOM structure. **Already-linked components** are attached to the BOM with
-   the calculated quantity. **Those "In work" can be updated**: the macro lists them right
-   after the "Assembly detected" question and asks once; on yes, each one's CAD file
-   replaces the same revision in the PDM, and two more questions decide whether its STEP
-   and PDF are exported again. A failed update gets a warning and a red cross in the
-   progress panel, and the run goes on. Components "Under review" or "Released" are never
-   sent and are listed in the final success message, as a reminder that any local changes
-   to them were NOT sent. **Components removed from the assembly since the
+   the calculated quantity. **Those "In work" are updated on "Yes"** in the "Assembly detected" question: each one's
+   CAD file replaces the same revision in the PDM, and two short questions decide whether
+   STEP and PDF are exported again. The main assembly in work is included, so it is not
+   asked about separately. A failed update gets a warning and a red cross in the
+   progress panel, and the run goes on. Components "Under review" or "Released" are never sent: the "Assembly detected" question
+   marks them, and after "Yes" one information window lists them. **Components removed from the assembly since the
    last upload are flagged too** — for every parent (the top-level document and every
    sub-assembly), before attaching its current local children the macro checks whether
    PDM still has a BOM relation to a child no longer present locally, and asks natively

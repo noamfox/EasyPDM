@@ -234,14 +234,13 @@ otwarciem głównego okna pyta, czy wysłać całe drzewo automatycznie:
   pasującej do numeru/nazwy pliku istniejącego elementu PDM (to samo sprawdzenie
   `match_existing_item` co lokalny skrót na górnym poziomie, krok 1b wyżej) — taki
   komponent nie dostaje biletu przeglądarki i jest podpinany do BOM-u z wyliczoną ilością,
-  po swoim istniejącym ID. **Jeśli któreś z nich są „W pracy”**, makro wypisuje je zaraz
-  po pytaniu „Wykryto złożenie” i pyta raz, czy je zaktualizować; przy „Tak” plik CAD
-  każdego z nich zastępuje tę samą rewizję w PDM, a dwa kolejne pytania decydują, czy na
-  nowo wyeksportować STEP i PDF. Komponent, którego nie udało się zaktualizować, dostaje
-  ostrzeżenie i czerwony krzyżyk w panelu postępu; reszta biegu idzie dalej. Komponenty
-  „Sprawdzane” i „Wydane” nigdy nie są wysyłane (wymaga to nowej rewizji albo zdjęcia ze
-  sprawdzania) i są oznaczane w końcowym komunikacie — przypomnienie, że ewentualne
-  lokalne zmiany w nich NIE zostały wysłane.
+  po swoim istniejącym ID. **Jeśli któreś z nich są „W pracy”**, „Tak” w oknie „Wykryto złożenie” aktualizuje je też: plik CAD każdego z nich zastępuje tę
+  samą rewizję w PDM, a dwa pola wyboru w tym samym oknie decydują, czy na nowo
+  wyeksportować STEP i PDF. Złożenie główne w pracy jest objęte tym samym, więc nie ma o nie
+  osobnego pytania. Komponent, którego nie udało się zaktualizować, dostaje
+  ostrzeżenie i czerwony krzyżyk w panelu postępu; reszta biegu idzie dalej. Komponenty „Sprawdzane” i „Wydane” nigdy nie są wysyłane (wymaga to nowej rewizji albo
+  zdjęcia ze sprawdzania): okno „Wykryto złożenie” je oznacza, a po „Tak” jedno okno
+  informacyjne je wypisuje.
 - **Nowe komponenty też idą przez przeglądarkę, jeden po drugim** — każdy jeszcze
   nierozpoznany plik dostaje WŁASNY bilet przeglądarki (ten sam wybór Nowy element/
   Duplikuj/Dograj do istniejącego, wraz z własnymi checkboksami STEP/PDF, co dokument

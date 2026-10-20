@@ -115,6 +115,9 @@ Private gRunTabOpened As Boolean
 Private gTopPresetItemId As String
 Private gTopPresetStep As Boolean
 Private gTopPresetPdf As Boolean
+' Lista plikow z blokujacym statusem pokazana juz przed wysylka -- wtedy main nie powtarza
+' jej na koncu biegu.
+Private gLockedShown As Boolean
 ' Uzytkownik kliknal "Anuluj" w panelu postepu -- zob. TransferCancelled. Zerowana na
 ' starcie main: zmienne modulu VBA potrafia przezyc miedzy uruchomieniami makra, a
 ' pozostawiona tu prawda zatrzymywalaby kazdy kolejny bieg, zanim by ruszyl.
@@ -338,8 +341,9 @@ Private Function T_PL(ByVal key As String) As String
         Case "NoActiveSavedDocument": T_PL = "Brak aktywnego, zapisanego dokumentu."
         Case "ExportStepPrompt": T_PL = "Wyeksportowac i wyslac model STEP (podglad 3D)?"
         Case "ExportPdfPrompt": T_PL = "Wyeksportowac i wyslac plik PDF?"
-        Case "UpdateExistingPrefix": T_PL = "Te pliki sa juz w PDM w statusie 'W pracy':"
-        Case "UpdateExistingSuffix": T_PL = "Zaktualizowac je? Plik CAD zastapi te sama rewizje w PDM."
+        Case "AssemblyUpdateNote": T_PL = "Pliki juz bedace w PDM w statusie 'W pracy' zostana zaktualizowane (plik CAD zastapi te sama rewizje)."
+        Case "NotSentSuffix": T_PL = ", nie zostanie wyslany"
+        Case "LockedNotSent": T_PL = "Tych plikow nie wyslemy -- sa w PDM ze statusem, ktory blokuje zmiany. Zeby je zaktualizowac, utworz nowa rewizje albo zdejmij je ze sprawdzania:"
         Case "UpdateExistingStepPrompt": T_PL = "Wyeksportowac i wyslac na nowo model STEP (podglad 3D) tych plikow?"
         Case "UpdateExistingPdfPrompt": T_PL = "Wyeksportowac i wyslac na nowo plik PDF tych plikow?"
         Case "UpdateExistingFailedPrefix": T_PL = "Nie udalo sie zaktualizowac komponentu: "
@@ -418,8 +422,9 @@ Private Function T_EN(ByVal key As String) As String
         Case "NoActiveSavedDocument": T_EN = "No active, saved document."
         Case "ExportStepPrompt": T_EN = "Export and upload STEP model (3D preview)?"
         Case "ExportPdfPrompt": T_EN = "Export and upload a PDF file?"
-        Case "UpdateExistingPrefix": T_EN = "These files are already in the PDM with status 'In work':"
-        Case "UpdateExistingSuffix": T_EN = "Update them? Their CAD file replaces the same revision in the PDM."
+        Case "AssemblyUpdateNote": T_EN = "Files already in the PDM with status 'In work' will be updated (their CAD file replaces the same revision)."
+        Case "NotSentSuffix": T_EN = ", will not be sent"
+        Case "LockedNotSent": T_EN = "These files will not be sent -- they are in the PDM with a status that blocks changes. To update them, create a new revision or take them out of review:"
         Case "UpdateExistingStepPrompt": T_EN = "Export and upload a fresh STEP model (3D preview) for these files?"
         Case "UpdateExistingPdfPrompt": T_EN = "Export and upload a fresh PDF for these files?"
         Case "UpdateExistingFailedPrefix": T_EN = "Could not update the component: "
@@ -498,8 +503,9 @@ Private Function T_DE(ByVal key As String) As String
         Case "NoActiveSavedDocument": T_DE = "Kein aktives, gespeichertes Dokument."
         Case "ExportStepPrompt": T_DE = "STEP-Modell exportieren und hochladen (3D-Vorschau)?"
         Case "ExportPdfPrompt": T_DE = "PDF-Datei exportieren und hochladen?"
-        Case "UpdateExistingPrefix": T_DE = "Diese Dateien sind bereits im PDM mit dem Status 'In Arbeit':"
-        Case "UpdateExistingSuffix": T_DE = "Aktualisieren? Ihre CAD-Datei ersetzt dieselbe Revision im PDM."
+        Case "AssemblyUpdateNote": T_DE = "Dateien, die bereits im PDM mit dem Status 'In Arbeit' sind, werden aktualisiert (ihre CAD-Datei ersetzt dieselbe Revision)."
+        Case "NotSentSuffix": T_DE = ", wird nicht gesendet"
+        Case "LockedNotSent": T_DE = "Diese Dateien werden nicht gesendet -- sie sind im PDM mit einem Status, der Aenderungen sperrt. Um sie zu aktualisieren, eine neue Revision anlegen oder sie aus der Pruefung nehmen:"
         Case "UpdateExistingStepPrompt": T_DE = "Fuer diese Dateien ein neues STEP-Modell (3D-Vorschau) exportieren und hochladen?"
         Case "UpdateExistingPdfPrompt": T_DE = "Fuer diese Dateien eine neue PDF-Datei exportieren und hochladen?"
         Case "UpdateExistingFailedPrefix": T_DE = "Die Komponente konnte nicht aktualisiert werden: "
@@ -3320,7 +3326,7 @@ Function ProcessAssemblyTree(ByVal topDoc As Object, ByRef edgesForTop As Collec
     Set lineByPath = CreateObject("Scripting.Dictionary")
     Dim updatablePaths As Object
     Set updatablePaths = CreateObject("Scripting.Dictionary")
-    Dim updatableList As String
+    Dim lockedList As String
     Dim p As Variant
     For Each p In order
         Dim summaryLine As String
@@ -3344,13 +3350,14 @@ Function ProcessAssemblyTree(ByVal topDoc As Object, ByRef edgesForTop As Collec
                 ' get updated, in case they changed one of them locally.
                 Dim summaryStatus As String
                 summaryStatus = JsonGetString(summaryLinkedInfo, "status", "")
-                ' W pracy = mozna dograc plik bez nowej rewizji -- kandydat do aktualizacji
-                ' (pytanie zaraz po oknie "Wykryto zlozenie", zob. updateExisting nizej).
+                ' W pracy = mozna dograc plik bez nowej rewizji -- aktualizowany po "Tak" w
+                ' oknie "Wykryto zlozenie" (zob. updateExisting nizej).
                 If summaryStatus <> "sprawdzany" And summaryStatus <> "wydany" Then
                     updatablePaths(CStr(p)) = True
-                    updatableList = updatableList & "- " & Mid(p, InStrRev(p, "\") + 1) & vbCrLf
                 End If
                 If summaryStatus = "sprawdzany" Or summaryStatus = "wydany" Then
+                    summaryLine = summaryLine & " -- " & StatusLabel(summaryStatus) & T("NotSentSuffix")
+                    lockedList = lockedList & "- " & Mid(p, InStrRev(p, "\") + 1) & " -- " & StatusLabel(summaryStatus) & vbCrLf
                     lockedComponents.Add JsonGetLong(summaryLinkedInfo, "itemNumber", 0) & "(" & _
                                          JsonGetString(summaryLinkedInfo, "fileName", "") & ") -- " & StatusLabel(summaryStatus)
                 End If
@@ -3361,35 +3368,9 @@ Function ProcessAssemblyTree(ByVal topDoc As Object, ByRef edgesForTop As Collec
     Next p
     summary = TreeSummaryText(topDoc.FullFileName, order, tree("edges"), lineByPath)
 
-    Dim choice As VbMsgBoxResult
-    choice = MsgBoxFront(T("AssemblyLinksPart1") & order.Count & T("AssemblyLinksPart2") & vbCrLf & vbCrLf & _
-                     summary & vbCrLf & _
-                     T("AssemblyLinksPart3") & vbCrLf & vbCrLf & _
-                     T("AssemblyLinksPart4"), _
-                     vbYesNoCancel + vbQuestion, T("AssemblyDetectedTitle"))
-    If choice = vbCancel Then
-        ProcessAssemblyTree = True
-        Exit Function
-    End If
-    ' "No" does NOT skip the whole tree -- it only skips CREATING/UPLOADING components not
-    ' yet in PDM. Components already linked still get attached into the BOM structure below
-    ' (no file upload needed for those, since nothing about them changed); a not-yet-linked
-    ' component with sendNewComponents=False is skipped entirely (never added to
-    ' pathToItemId below), so any relation involving it as parent or child is naturally
-    ' skipped too by the existing pathToItemId.Exists(...) guards further down.
-    Dim sendNewComponents As Boolean
-    sendNewComponents = (choice = vbYes)
-
-    ' Komponenty juz w PDM byly dotad TYLKO podpinane do struktury -- bez pliku CAD, STEP-a
-    ' i PDF-a, wiec zmiana zrobiona w nich lokalnie nie szla na serwer (zgloszone z
-    ' praktyki). Jedno pytanie na caly bieg, tylko o te W PRACY: ich plik CAD zastepuje te
-    ' sama rewizje (serwer podmienia wpis o tej samej nazwie), a STEP/PDF wedlug dwoch
-    ' kolejnych pytan. Wydane i sprawdzane dalej nie sa ruszane -- trafiaja na liste
-    ' ostrzezen, jak dotad. To samo robi EasyPDMUpload.FCMacro.
-    '
-    ' Sam dokument glowny, jesli juz jest w PDM i w pracy, wchodzi na TE SAMA liste, na gore --
-    ' inaczej zaraz potem main pytal o niego osobno (podpiac? STEP? PDF?), czyli dwa razy o
-    ' to samo (zgloszone z praktyki). Wydany albo sprawdzany zostaje przy swojej sciezce.
+    ' Sam dokument glowny, jesli juz jest w PDM i w pracy, jest aktualizowany razem z
+    ' komponentami -- liczone PRZED oknem, bo okno mowi, ze pliki w pracy zostana
+    ' zaktualizowane. Wydany albo sprawdzany zostaje przy swojej sciezce w main.
     Dim topLinkedId As String
     topLinkedId = GetLinkedItemIdOn(topDoc)
     Dim topUpdatable As Boolean
@@ -3403,28 +3384,57 @@ Function ProcessAssemblyTree(ByVal topDoc As Object, ByRef edgesForTop As Collec
         If Not topInfo Is Nothing Then
             Dim topStatus As String
             topStatus = JsonGetString(topInfo, "status", "")
-            If topStatus <> "sprawdzany" And topStatus <> "wydany" Then
-                topUpdatable = True
-                updatableList = "- " & Mid(topDoc.FullFileName, InStrRev(topDoc.FullFileName, "\") + 1) & vbCrLf & updatableList
-            End If
+            If topStatus <> "sprawdzany" And topStatus <> "wydany" Then topUpdatable = True
         End If
     End If
+    Dim anyUpdatable As Boolean
+    anyUpdatable = (updatablePaths.Count > 0 Or topUpdatable)
+
+    ' JEDNO okno decyduje o calym zlozeniu: "Tak" wysyla nowe komponenty i aktualizuje te juz
+    ' bedace w PDM w pracy (plik CAD zastepuje te sama rewizje), lacznie z dokumentem
+    ' glownym. Wczesniej po nim padalo osobne "zaktualizowac?" -- dwa okna pytajace o to
+    ' samo (zgloszone z praktyki). STEP/PDF dla aktualizowanych to dwa krotkie pytania
+    ' nizej, bo MsgBox nie ma pol wyboru (makro FreeCAD ma je w tym samym oknie).
+    Dim updateNote As String
+    If anyUpdatable Then updateNote = vbCrLf & vbCrLf & T("AssemblyUpdateNote")
+    Dim choice As VbMsgBoxResult
+    choice = MsgBoxFront(T("AssemblyLinksPart1") & order.Count & T("AssemblyLinksPart2") & vbCrLf & vbCrLf & _
+                     summary & vbCrLf & _
+                     T("AssemblyLinksPart3") & vbCrLf & vbCrLf & _
+                     T("AssemblyLinksPart4") & updateNote, _
+                     vbYesNoCancel + vbQuestion, T("AssemblyDetectedTitle"))
+    If choice = vbCancel Then
+        ProcessAssemblyTree = True
+        Exit Function
+    End If
+    ' "No" skips creating new components AND updating existing ones. Components already
+    ' linked still get attached into the BOM structure below (no file upload); a
+    ' not-yet-linked component with sendNewComponents=False is skipped entirely (never added
+    ' to pathToItemId below), so any relation involving it is skipped too by the existing
+    ' pathToItemId.Exists(...) guards further down.
+    Dim sendNewComponents As Boolean
+    sendNewComponents = (choice = vbYes)
 
     Dim updateExisting As Boolean
     Dim updateStep As Boolean
     Dim updatePdf As Boolean
-    If updatablePaths.Count > 0 Or topUpdatable Then
-        updateExisting = (MsgBoxFront(T("UpdateExistingPrefix") & vbCrLf & updatableList & vbCrLf & T("UpdateExistingSuffix"), _
-                                      vbYesNo + vbQuestion + vbDefaultButton1, T("AppTitle")) = vbYes)
-        If updateExisting Then
-            updateStep = (MsgBoxFront(T("UpdateExistingStepPrompt"), vbYesNo + vbQuestion + vbDefaultButton1, T("AppTitle")) = vbYes)
-            updatePdf = (MsgBoxFront(T("UpdateExistingPdfPrompt"), vbYesNo + vbQuestion + vbDefaultButton2, T("AppTitle")) = vbYes)
-        End If
-        If topUpdatable And updateExisting Then
+    updateExisting = (sendNewComponents And anyUpdatable)
+    If updateExisting Then
+        updateStep = (MsgBoxFront(T("UpdateExistingStepPrompt"), vbYesNo + vbQuestion + vbDefaultButton1, T("AppTitle")) = vbYes)
+        updatePdf = (MsgBoxFront(T("UpdateExistingPdfPrompt"), vbYesNo + vbQuestion + vbDefaultButton2, T("AppTitle")) = vbYes)
+        If topUpdatable Then
             gTopPresetItemId = topLinkedId
             gTopPresetStep = updateStep
             gTopPresetPdf = updatePdf
         End If
+    End If
+
+    ' Drugie okno tylko informuje: pliki wydane/sprawdzane nie pojda, bo wymagaja nowej
+    ' rewizji albo zdjecia ze sprawdzania. Pokazane tutaj, wiec main nie powtarza listy na
+    ' koncu (gLockedShown).
+    If sendNewComponents And lockedList <> "" Then
+        MsgBoxFront T("LockedNotSent") & vbCrLf & vbCrLf & lockedList, vbInformation, T("AppTitle")
+        gLockedShown = True
     End If
 
     ' Lista do panelu postepu w przegladarce -- zglaszana TERAZ, bo dopiero teraz wiadomo, ze
@@ -4254,6 +4264,7 @@ Function UploadPartOrAssemblyDoc(ByVal oDoc As Object, ByVal filePath As String,
     gTopPresetItemId = ""
     gTopPresetStep = False
     gTopPresetPdf = False
+    gLockedShown = False
     If itemTypeGuess = "assembly" Then
         If ProcessAssemblyTree(oDoc, edgesForTop, targetFolder, lockedComponents) Then
             LogLine "Cancelled during assembly tree processing -- done."
@@ -4475,7 +4486,7 @@ Function UploadPartOrAssemblyDoc(ByVal oDoc As Object, ByVal filePath As String,
         ' lokalnie, jego zmiana NIE poszla na serwer -- a tego raport z listy plikow nie
         ' powie, bo z jego punktu widzenia nic sie nie wydarzylo. To warto zatrzymac przed
         ' oczami i dlatego dla tego jednego przypadku okno zostaje.
-        If lockedComponents.Count > 0 Then
+        If lockedComponents.Count > 0 And Not gLockedShown Then
             Dim lockedTail As String
             lockedTail = ""
             Dim lockedLine As Variant

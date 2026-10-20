@@ -106,13 +106,12 @@ inaczej:
    Nowo utworzone komponenty dostają własny eksport STEP/PDF (wg wyboru checkboxa tego
    konkretnego komponentu w przeglądarce) i wpis `EasyPDM_ItemId`, i są automatycznie
    podpinane pod swojego rodzica w strukturze BOM. **Już podpięte komponenty** są podpinane do
-   BOM-u z wyliczoną ilością. **Te „W pracy” można zaktualizować**: makro wypisuje je
-   zaraz po pytaniu „Wykryto złożenie” i pyta raz; przy „Tak” plik CAD każdego z nich
-   zastępuje tę samą rewizję w PDM, a dwa kolejne pytania decydują, czy na nowo
-   wyeksportować STEP i PDF. Nieudana aktualizacja daje ostrzeżenie i czerwony krzyżyk w
-   panelu postępu, a bieg idzie dalej. Komponenty „Sprawdzane” i „Wydane” nigdy nie są
-   wysyłane i są wypisywane w końcowym komunikacie sukcesu, jako przypomnienie, że
-   ewentualne lokalne zmiany w nich NIE zostały wysłane. **Komponenty usunięte ze
+   BOM-u z wyliczoną ilością. **Te „W pracy” są aktualizowane po „Tak”** w pytaniu „Wykryto złożenie”: plik CAD
+   każdego z nich zastępuje tę samą rewizję w PDM, a dwa krótkie pytania decydują, czy na
+   nowo wyeksportować STEP i PDF. Złożenie główne w pracy jest objęte tym samym, więc nie
+   ma o nie osobnego pytania. Nieudana aktualizacja daje ostrzeżenie i czerwony krzyżyk w
+   panelu postępu, a bieg idzie dalej. Komponenty „Sprawdzane” i „Wydane” nigdy nie są wysyłane: pytanie „Wykryto złożenie” je
+   oznacza, a po „Tak” jedno okno informacyjne je wypisuje. **Komponenty usunięte ze
    złożenia od poprzedniej wysyłki są też oznaczane** — dla każdego rodzica (dokumentu
    głównego i każdego pod-złożenia), przed podpięciem jego aktualnych lokalnych dzieci,
    makro sprawdza czy PDM nadal ma relację BOM do dziecka, którego nie ma już lokalnie,

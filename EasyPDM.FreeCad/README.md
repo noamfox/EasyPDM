@@ -246,14 +246,14 @@ the Assembly/Assembly4 workbench) to **other, saved `.FCStd` files**, the macro 
   `number (name).REVISION` matching an existing PDM item's number/filename (the same
   `match_existing_item` check as the top-level "local shortcut", step 1b above) — such a
   component gets no browser ticket and is attached to the BOM with the calculated
-  quantity using its existing item ID. **If any of them are "In work"**, the macro lists
-  them right after the "Assembly detected" question and asks once whether to update
-  them; on yes, each one's CAD file replaces the same revision in the PDM, and two more
-  questions decide whether its STEP and PDF are exported again. A component that fails to
+  quantity using its existing item ID. **If any of them are "In work"**, answering "Yes" in the "Assembly detected" window also updates them: each one's CAD file
+  replaces the same revision in the PDM, and two checkboxes in that same window decide
+  whether STEP and PDF are exported again. The main assembly is included when it is in work
+  too, so it is not asked about separately. A component that fails to
   update gets a warning and a red cross in the progress panel; the rest of the run goes
-  on. Components "Under review" or "Released" are never sent (that needs a new revision
-  or taking it out of review first) and are flagged in the final message, as a reminder
-  that any local changes to them were NOT sent.
+  on. Components "Under review" or "Released" are never sent (that needs a new revision or
+  taking them out of review first): the "Assembly detected" window marks them, and after
+  "Yes" one information window lists them.
 - **New components go through the browser too, one at a time** — each not-yet-recognized
   file gets its OWN browser ticket (same New item/Duplicate/Attach to existing choice,
   including its own STEP/PDF checkboxes, as the top-level document), opened sequentially,

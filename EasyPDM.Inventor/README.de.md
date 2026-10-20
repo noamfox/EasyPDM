@@ -100,10 +100,9 @@ Verhaltensbeschreibung in deren eigenem README gilt hier identisch.
    Kontrollkästchen-Wahl dieser Komponente im Browser) und eine `EasyPDM_LinkId`-
    iProperty und werden automatisch unter ihrem übergeordneten Element in der
    Stücklistenstruktur angehängt. Bereits verknüpfte Komponenten werden an die Stückliste
-   angehängt; solche „In Arbeit" lassen sich aktualisieren — das Makro listet sie nach der
-   Frage „Baugruppe erkannt" auf und fragt einmal, dann ersetzt ihre CAD-Datei dieselbe
-   Revision, und STEP/PDF werden auf Wunsch neu exportiert. „In Prüfung" und
-   „Freigegeben" werden nie gesendet. Seit dem letzten Upload aus der
+   angehängt; solche „In Arbeit" werden bei „Ja" in der Frage „Baugruppe erkannt" aktualisiert — ihre
+   CAD-Datei ersetzt dieselbe Revision, und STEP/PDF werden auf Wunsch neu exportiert. „In
+   Prüfung" und „Freigegeben" werden nie gesendet; nach „Ja" listet ein Hinweisfenster sie auf. Seit dem letzten Upload aus der
    Baugruppe entfernte Komponenten werden ebenfalls gemeldet, mit einer Bestätigung vor
    dem Entfernen ihrer PDM-Verknüpfung (die Elemente selbst werden nie gelöscht, nur ihre
    Zuordnung unter diesem speziellen übergeordneten Element).

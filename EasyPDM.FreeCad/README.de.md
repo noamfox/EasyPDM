@@ -268,14 +268,14 @@ automatisch gesendet werden soll:
   `match_existing_item`-Prüfung wie die lokale Abkürzung auf oberster Ebene, Schritt 1b
   oben) — eine solche Komponente erhält kein Browser-Ticket und wird mit der berechneten
   Menge und ihrer vorhandenen Element-ID an die Stückliste angehängt. **Sind welche davon
-  „In Arbeit"**, listet das Makro sie direkt nach der Frage „Baugruppe erkannt" auf und
-  fragt einmal, ob sie aktualisiert werden sollen; bei Ja ersetzt die CAD-Datei jeder
-  davon dieselbe Revision im PDM, und zwei weitere Fragen entscheiden, ob STEP und PDF neu
-  exportiert werden. Eine Komponente, deren Aktualisierung fehlschlägt, erhält eine
+  „In Arbeit"**, aktualisiert „Ja" im Fenster „Baugruppe erkannt" sie ebenfalls: Die CAD-Datei jeder davon
+  ersetzt dieselbe Revision im PDM, und zwei Kontrollkästchen im selben Fenster entscheiden,
+  ob STEP und PDF neu exportiert werden. Die Hauptbaugruppe in Arbeit ist eingeschlossen,
+  daher gibt es keine eigene Frage dazu. Eine Komponente, deren Aktualisierung fehlschlägt, erhält eine
   Warnung und ein rotes Kreuz im Fortschrittsfenster; der Rest des Laufs geht weiter.
   Komponenten „In Prüfung" oder „Freigegeben" werden nie gesendet (das erfordert eine neue
-  Revision oder das Zurücknehmen aus der Prüfung) und in der abschließenden Meldung
-  markiert — als Erinnerung, dass lokale Änderungen daran NICHT gesendet wurden.
+  Revision oder das Zurücknehmen aus der Prüfung): Das Fenster „Baugruppe erkannt" markiert
+  sie, und nach „Ja" listet ein Hinweisfenster sie auf.
 - **Neue Komponenten laufen ebenfalls über den Browser, eine nach der anderen** — jede
   noch nicht erkannte Datei erhält ihr EIGENES Browser-Ticket (dieselbe Wahl Neu/
   Duplizieren/An Vorhandenes anhängen, einschließlich eigener STEP-/PDF-Checkboxen, wie
