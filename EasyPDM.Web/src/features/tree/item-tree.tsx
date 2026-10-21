@@ -60,6 +60,7 @@ function ItemTree({
   selectedIds,
   onToggleSelect,
   onError,
+  onRemoveFromStructure,
   clientVerifications,
 }: {
   tree: Tree
@@ -76,6 +77,9 @@ function ItemTree({
   // od struktury dotyczy jednego, wskazanego miejsca. Zob. handleBulkRemoveFromStructure.
   onToggleSelect: (id: string, parentId: string | null) => void
   onError?: (message: string | null) => void
+  // "X" w wierszu = "Usuń ze struktury" dla TEGO miejsca -- ta sama funkcja co przycisk na
+  // belce (project-tree-view.tsx, detachFromStructure), żeby oba działały identycznie.
+  onRemoveFromStructure: (id: string, parentId: string) => Promise<void>
   // Ostatni wynik weryfikacji klienta per element (zob. useClientVerifications) -- tylko do
   // znacznika przy wierszu; pusta mapa = nic nie pokazujemy.
   clientVerifications: Map<string, ClientVerificationSummary>
@@ -165,6 +169,7 @@ function ItemTree({
                   selectedIds={selectedIds}
                   onToggleSelect={onToggleSelect}
                   onError={onError}
+                  onRemoveFromStructure={onRemoveFromStructure}
                   clientVerifications={clientVerifications}
                 />
               ))}
@@ -193,6 +198,7 @@ function TreeNode({
   selectedIds,
   onToggleSelect,
   onError,
+  onRemoveFromStructure,
   clientVerifications,
 }: {
   item: Item
@@ -208,6 +214,7 @@ function TreeNode({
   selectedIds: Set<string>
   onToggleSelect: (id: string, parentId: string | null) => void
   onError?: (message: string | null) => void
+  onRemoveFromStructure: (id: string, parentId: string) => Promise<void>
   clientVerifications: Map<string, ClientVerificationSummary>
 }) {
   const { t } = useLanguage()
@@ -370,15 +377,16 @@ function TreeNode({
             <Button
               size="icon-xs"
               variant="ghost"
-              aria-label={t("addNode.removeRelationAria")}
+              aria-label={t("item.removeFromStructure")}
+              title={t("item.removeFromStructure")}
               onClick={async () => {
-                // Element staje się BEZ PROJEKTU zamiast pokazywać się w korzeniu bieżącego
-                // projektu (patrz project-tree-view.tsx: handleRemoveFromStructure) — nadal
-                // w pełni widoczny i znajdywalny przez globalne wyszukiwanie ("Cała baza").
+                // To samo co "Usuń ze struktury" na belce: odpina tylko to miejsce, a projekt
+                // odbiera dopiero, gdy element nie stoi już nigdzie indziej (zob.
+                // detachFromStructure). Wcześniej "X" miał własną kopię starej logiki i zawsze
+                // zabierał projekt, więc element znikał też z pozostałych miejsc.
                 try {
                   onError?.(null)
-                  await api.removeChild(parentId, item.id)
-                  await api.moveItemToProject(item.id, null)
+                  await onRemoveFromStructure(item.id, parentId)
                   await onRefetch()
                 } catch (err) {
                   onError?.(err instanceof Error ? err.message : t("item.removeFromStructureFailed"))
@@ -417,6 +425,7 @@ function TreeNode({
                   selectedIds={selectedIds}
                   onToggleSelect={onToggleSelect}
                   onError={onError}
+                  onRemoveFromStructure={onRemoveFromStructure}
                   clientVerifications={clientVerifications}
                 />
               ))}

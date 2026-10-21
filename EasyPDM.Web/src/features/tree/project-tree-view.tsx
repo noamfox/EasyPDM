@@ -551,6 +551,7 @@ function ProjectTreeView({
             selectedIds={selectedIds}
             onToggleSelect={toggleSelectFromRow}
             onError={setItemActionError}
+            onRemoveFromStructure={(id, parentId) => detachFromStructure(id, parentId, new Set(), new Set())}
             clientVerifications={clientVerifications}
           />
         </div>
