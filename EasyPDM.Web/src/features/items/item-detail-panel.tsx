@@ -48,6 +48,7 @@ import { StatusControl } from "@/features/items/status-control"
 import { ItemPreviewBox } from "@/features/preview/item-preview-box"
 import { PreviewDialog } from "@/features/preview/preview-dialog"
 import { useLanguage } from "@/i18n/use-language"
+import { useOptimisticOrder } from "@/lib/optimistic-order"
 import { previewKindOf } from "@/lib/file-preview"
 
 // W BOM-ie nie każda Część ma Materiał/Producenta/Numery zamówieniowe (zależy od "rodzaju") —
@@ -229,8 +230,10 @@ function ItemDetailPanel({
     }
   }
   const attachedFiles = childEntries.filter((c) => c.item.itemType === "file").map((c) => c.item)
-  const bomEntries = childEntries.filter(
-    (c) => c.item.itemType === "part" || c.item.itemType === "assembly"
+  const bomOrder = useOptimisticOrder()
+  const bomEntries = bomOrder.apply(
+    childEntries.filter((c) => c.item.itemType === "part" || c.item.itemType === "assembly"),
+    (c) => c.item.id
   )
   const modified = item.modifiedAt ? new Date(item.modifiedAt).toLocaleString("pl-PL") : "—"
   const typeLabelKey = itemTypeLabelKey(item)
@@ -284,8 +287,7 @@ function ItemDetailPanel({
 
     setBomError(null)
     try {
-      await api.reorderChildren(item.id, reordered)
-      await onItemsRefetch()
+      await bomOrder.commit(reordered, () => api.reorderChildren(item.id, reordered), onItemsRefetch)
     } catch (err) {
       setBomError(err instanceof Error ? err.message : t("item.reorderFailed"))
     }

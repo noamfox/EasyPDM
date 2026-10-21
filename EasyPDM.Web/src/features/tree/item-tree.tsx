@@ -27,6 +27,7 @@ import { api } from "@/api/client"
 import { itemDisplayLabel, type ClientVerificationSummary, type Item } from "@/api/types"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { useOptimisticOrder } from "@/lib/optimistic-order"
 import { iconColorClass, itemIcon, ownerLockVisual } from "@/lib/item-visuals"
 import { AddNodeDialog } from "@/features/items/add-node-dialog"
 import { useAuth } from "@/features/auth/use-auth"
@@ -87,23 +88,26 @@ function ItemTree({
   const { t } = useLanguage()
   const rootSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
   const [activeRootId, setActiveRootId] = useState<string | null>(null)
+  const rootOrder = useOptimisticOrder()
 
   if (tree.loading) return null
+
+  const roots = rootOrder.apply(tree.roots, (r) => r.id)
 
   async function handleRootDragEnd(event: DragEndEvent) {
     setActiveRootId(null)
     const { active, over } = event
     if (!over || active.id === over.id) return
 
-    const ids = tree.roots.map((r) => r.id)
+    const ids = roots.map((r) => r.id)
     const fromIndex = ids.indexOf(String(active.id))
     const toIndex = ids.indexOf(String(over.id))
     if (fromIndex === -1 || toIndex === -1) return
 
+    const next = arrayMove(ids, fromIndex, toIndex)
     try {
       onError?.(null)
-      await api.reorderRoots(projectId, arrayMove(ids, fromIndex, toIndex))
-      await tree.refetch()
+      await rootOrder.commit(next, () => api.reorderRoots(projectId, next), tree.refetch)
     } catch (err) {
       onError?.(err instanceof Error ? err.message : t("item.reorderFailed"))
     }
@@ -152,8 +156,8 @@ function ItemTree({
             onDragEnd={handleRootDragEnd}
             onDragCancel={() => setActiveRootId(null)}
           >
-            <SortableContext items={tree.roots.map((r) => r.id)} strategy={verticalListSortingStrategy}>
-              {tree.roots.map((item) => (
+            <SortableContext items={roots.map((r) => r.id)} strategy={verticalListSortingStrategy}>
+              {roots.map((item) => (
                 <TreeNode
                   key={item.id}
                   item={item}
@@ -220,7 +224,8 @@ function TreeNode({
   const { t } = useLanguage()
   const { user } = useAuth()
   const [expanded, setExpanded] = useState(true)
-  const children = childrenOf(item.id)
+  const childOrder = useOptimisticOrder()
+  const children = childOrder.apply(childrenOf(item.id), (c) => c.item.id)
   const hasChildren = children.length > 0
   const TypeIcon = itemIcon(item)
   const lockVisual = ownerLockVisual(item, user?.id)
@@ -255,10 +260,10 @@ function TreeNode({
     const toIndex = ids.indexOf(String(over.id))
     if (fromIndex === -1 || toIndex === -1) return
 
+    const next = arrayMove(ids, fromIndex, toIndex)
     try {
       onError?.(null)
-      await api.reorderChildren(item.id, arrayMove(ids, fromIndex, toIndex))
-      await onRefetch()
+      await childOrder.commit(next, () => api.reorderChildren(item.id, next), onRefetch)
     } catch (err) {
       onError?.(err instanceof Error ? err.message : t("item.reorderFailed"))
     }
