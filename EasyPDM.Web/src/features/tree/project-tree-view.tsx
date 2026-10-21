@@ -100,6 +100,42 @@ function ProjectTreeView({
     })
   }
 
+  // "Usuń ze struktury" dla elementu z rodzicem odpina WYŁĄCZNIE wskazane miejsce. Projekt
+  // odbieramy tylko wtedy, gdy element nie stoi już nigdzie indziej w tym projekcie -- ani
+  // jako widoczny korzeń, ani pod innym rodzicem. Wcześniej projekt był odbierany zawsze, a że
+  // korzeń pokazuje tylko elementy z tym projektem, element stojący też w korzeniu znikał
+  // stamtąd razem z odpinanym miejscem -- wyglądało to jak usunięcie ze wszystkich miejsc
+  // naraz (zgłoszone z praktyki). removedEdges/hiddenRoots: miejsca zdjęte już w tym samym
+  // wsadzie (akcja masowa), których dane drzewa jeszcze nie znają.
+  async function detachFromStructure(
+    id: string,
+    parentId: string | null,
+    removedEdges: Set<string>,
+    hiddenRoots: Set<string>
+  ) {
+    if (!parentId) {
+      // Korzeń -- nie ma czego odpiąć, element przestaje być widoczny jako korzeń (rekord
+      // i przynależność do projektu zostają).
+      await api.setShowInTree(id, false)
+      hiddenRoots.add(id)
+      return
+    }
+    await api.removeChild(parentId, id)
+    removedEdges.add(`${parentId}:${id}`)
+    const item = tree.itemsById.get(id)
+    const stillRoot = !!item && item.projectId === project.id && item.showInTree && !hiddenRoots.has(id)
+    const stillChild = tree.relations.some(
+      (r) => r.childId === id && !removedEdges.has(`${r.parentId}:${id}`)
+    )
+    if (!stillRoot && !stillChild) {
+      // Nigdzie go już nie ma: zamiast pokazywać się w korzeniu bieżącego projektu (zaśmiecałby
+      // jego strukturę czymś, co z tym projektem nie ma już nic wspólnego) staje się BEZ
+      // PROJEKTU. Nadal w pełni widoczny i znajdywalny przez "Cała baza"; to samo zachowanie
+      // co synchronizacja BOM w makrach CAD (zob. sync_stale_children/SyncStaleChildren).
+      await api.moveItemToProject(id, null)
+    }
+  }
+
   // Jeśli wybrany element zniknął z drzewka (np. go usunięto), wracamy do projektu.
   useEffect(() => {
     if (selection.kind === "item" && !tree.itemsById.has(selection.id)) {
@@ -159,20 +195,7 @@ function ProjectTreeView({
     if (selection.kind !== "item") return
     setItemActionError(null)
     try {
-      if (selection.parentId) {
-        // Element z rodzicem — odpinamy konkretną krawędź, sam rekord zostaje. Element
-        // staje się BEZ PROJEKTU (moveItemToProject(id, null)) zamiast pokazywać się w
-        // korzeniu bieżącego projektu — zaśmiecałoby to jego strukturę czymś, co z tym
-        // projektem nie ma już nic wspólnego. Nadal w pełni widoczny i znajdywalny przez
-        // globalne wyszukiwanie ("Cała baza"); to samo zachowanie co synchronizacja BOM w
-        // makrach CAD (zob. sync_stale_children/SyncStaleChildren).
-        await api.removeChild(selection.parentId, selection.id)
-        await api.moveItemToProject(selection.id, null)
-      } else {
-        // Element bez rodzica — nie ma czego odpiąć, więc przestaje być widoczny
-        // jako korzeń w drzewku (rekord i przynależność do projektu zostają).
-        await api.setShowInTree(selection.id, false)
-      }
+      await detachFromStructure(selection.id, selection.parentId ?? null, new Set(), new Set())
       setSelection({ kind: "project" })
       await tree.refetch()
     } catch (err) {
@@ -285,15 +308,12 @@ function ProjectTreeView({
   async function handleBulkRemoveFromStructure() {
     setBulkError(null)
     let failures = 0
+    const removedEdges = new Set<string>()
+    const hiddenRoots = new Set<string>()
     for (const id of selectedIds) {
       const parentId = selectedParents.get(id) ?? null
       try {
-        if (parentId) {
-          await api.removeChild(parentId, id)
-          await api.moveItemToProject(id, null)
-        } else {
-          await api.setShowInTree(id, false)
-        }
+        await detachFromStructure(id, parentId, removedEdges, hiddenRoots)
       } catch {
         failures += 1
       }

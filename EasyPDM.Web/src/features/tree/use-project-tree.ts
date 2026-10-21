@@ -77,5 +77,5 @@ export function useProjectTree(projectId: string) {
     [items, projectId]
   )
 
-  return { items, itemsById, roots, childrenOf, loading, refetch }
+  return { items, itemsById, relations, roots, childrenOf, loading, refetch }
 }
