@@ -22,6 +22,7 @@ builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 
 // Kestrel one above would still 413 on anything bigger than 128 MB. Same reasoning as
 // Kestrel's limit: no sane fixed cap for arbitrary CAD files, so it's removed too.
 builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = long.MaxValue);
+builder.Services.AddHttpClient("ExternalFiles").ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 var app = builder.Build();
 
 string connectionString = app.Configuration["ConnectionString"]
@@ -105,6 +106,16 @@ var browserBridgeTicketStore = new BrowserBridgeTicketStore();
 var transferProgressStore = new TransferProgressStore();
 var cadRequestStore = new CadRequestStore();
 
+// Reference-only pilot: uploads and storage moves cannot create local source copies.
+app.Use(async (ctx, next) => {
+ if (NasReferenceEndpoints.Enabled(app.Configuration) && ctx.Request.Path.StartsWithSegments("/api") &&
+     (ctx.Request.HasFormContentType || ctx.Request.Path.Value!.EndsWith("/attachments/register", StringComparison.Ordinal) || ctx.Request.Path == "/api/settings/storage/move" ||
+      (ctx.Request.Method == "DELETE" && ctx.Request.Path.StartsWithSegments("/api/attachments")))) {
+  ctx.Response.StatusCode=409; await ctx.Response.WriteAsync("NAS reference mode: link an indexed original; uploads, legacy deletion and storage moves are disabled."); return;
+ }
+ await next();
+});
+app.MapNasReferenceEndpoints(connectionString);
 app.MapAuthEndpoints(connectionString, browserBridgeTicketStore);
 app.MapUserEndpoints(connectionString);
 app.MapProjectEndpoints(connectionString);

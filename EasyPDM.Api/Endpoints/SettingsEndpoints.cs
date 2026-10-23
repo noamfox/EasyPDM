@@ -12,7 +12,7 @@ static class SettingsEndpoints
         this WebApplication app, string connectionString, StorageSettings storage, string appSettingsPath)
     {
         // GET /api/settings/storage — bieżąca lokalizacja magazynu + podstawowe statystyki.
-        app.MapGet("/api/settings/storage", (HttpContext ctx) =>
+        app.MapGet("/api/settings/storage", async (HttpContext ctx) =>
         {
             if (!AuthEndpoints.IsAdmin(ctx))
                 return Forbidden();
@@ -29,7 +29,13 @@ static class SettingsEndpoints
                 }
             }
 
-            return Results.Ok(new { path, fileCount, totalSizeBytes });
+            long referenceCount = 0;
+            if (NasReferenceEndpoints.Enabled(ctx.RequestServices.GetRequiredService<IConfiguration>())) {
+                await using var conn = new NpgsqlConnection(connectionString); await conn.OpenAsync();
+                await using var count = new NpgsqlCommand("SELECT count(*) FROM nas_file_references", conn);
+                referenceCount = (long)(await count.ExecuteScalarAsync())!;
+            }
+            return Results.Ok(new { path, fileCount, totalSizeBytes, mode = NasReferenceEndpoints.Enabled(ctx.RequestServices.GetRequiredService<IConfiguration>()) ? "nas-reference" : "upload", referenceCount, source = NasReferenceEndpoints.Source(ctx.RequestServices.GetRequiredService<IConfiguration>()), originalsReadOnly = true });
         });
 
         // POST /api/settings/storage/move   body: { newPath, migrateExisting }
