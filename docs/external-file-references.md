@@ -10,4 +10,8 @@ Preview adapters may handle `?source=PATH` on their landing page. Generate meshe
 
 Legacy attachment substitution requires administrator access and matching SHA-256 hashes. Existing files are retained for rollback. Backups of EasyPDM hold reference metadata; they do not back up external originals. References describe mutable source files, not immutable released revision snapshots.
 
-This branch is a development preview. Provider conformance, enabled-mode authorization and concurrent mutation tests, UI localization, latest-main integration, and end-to-end pilot acceptance are required before upstream submission or deployment.
+Set `EASYPDM_EXTERNAL_ORIGIN` to the exact HTTPS public origin when a private reverse proxy terminates TLS. This accepts only that configured origin rather than trusting arbitrary forwarded headers. Resolve requests have a five-second timeout and return controlled unavailable results for provider network, timeout or malformed metadata failures. Stored references retain their source label; changing the configured label marks older references unavailable and denies source downloads. Operators must also preserve the physical root associated with a label.
+
+Enabled-mode tests cover project denial, concurrent idempotent linking and unlinking, zero managed files, source changes and missing files, provider failures, legacy hash mismatch/match and upload retention, source-label mismatch, origin/path checks, and state revalidation after slow provider IO. Link/unlink serialize against item changes. Migration startup explicitly releases its session advisory lock before returning the physical connection to the pool.
+
+This remains a development preview: live NAS/provider acceptance, integrated geometry-preview checks, localization and immutable released-revision semantics remain required before upstream submission. Synthetic API/provider contract tests do not constitute live NAS or manufacturing acceptance.

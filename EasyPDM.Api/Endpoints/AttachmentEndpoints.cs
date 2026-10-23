@@ -30,7 +30,7 @@ static class AttachmentEndpoints
                 WHERE item_id = @itemId
                 ORDER BY uploaded_at;
                 """;
-            if (NasReferenceEndpoints.Enabled) sql = sql.Replace("WHERE item_id = @itemId", "WHERE item_id = @itemId AND NOT EXISTS (SELECT 1 FROM nas_file_references nr WHERE nr.legacy_attachment_id=item_attachments.id)");
+            if (NasReferenceEndpoints.Enabled(ctx.RequestServices.GetRequiredService<IConfiguration>())) sql = sql.Replace("WHERE item_id = @itemId", "WHERE item_id = @itemId AND NOT EXISTS (SELECT 1 FROM nas_file_references nr WHERE nr.legacy_attachment_id=item_attachments.id)");
             await using var cmd = new NpgsqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("itemId", itemId);
 

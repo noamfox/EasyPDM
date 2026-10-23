@@ -33,6 +33,8 @@ static class MigrationRunner
             await lockCmd.ExecuteNonQueryAsync();
         }
 
+        try
+        {
         // Samonaprawiające się — działa też na instalacjach sprzed wprowadzenia tego
         // mechanizmu (migracja 027 tworzy tę samą tabelę, ale istniejąca baza mogła jej
         // jeszcze nie dostać, jeśli ktoś pominął ręczne stosowanie migracji do tej pory).
@@ -131,6 +133,15 @@ static class MigrationRunner
                     fileName);
                 throw;
             }
+        }
+        }
+        finally
+        {
+            // Disposing a pooled connection does not close its physical session.
+            // Release before returning it so another startup cannot block on our lock.
+            await using var unlock = new NpgsqlCommand("SELECT pg_advisory_unlock(@key);", conn);
+            unlock.Parameters.AddWithValue("key", AdvisoryLockKey);
+            await unlock.ExecuteNonQueryAsync();
         }
     }
 
