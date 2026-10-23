@@ -24,12 +24,13 @@ static class AttachmentEndpoints
             await using var conn = new NpgsqlConnection(connectionString);
             await conn.OpenAsync();
 
-            const string sql = """
+            string sql = """
                 SELECT id, file_name, file_size, uploaded_at, preview_role, revision_number
                 FROM item_attachments
                 WHERE item_id = @itemId
                 ORDER BY uploaded_at;
                 """;
+            if (NasReferenceEndpoints.Enabled) sql = sql.Replace("WHERE item_id = @itemId", "WHERE item_id = @itemId AND NOT EXISTS (SELECT 1 FROM nas_file_references nr WHERE nr.legacy_attachment_id=item_attachments.id)");
             await using var cmd = new NpgsqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("itemId", itemId);
 
@@ -219,6 +220,8 @@ static class AttachmentEndpoints
         // do projektu.
         app.MapGet("/api/attachments/{id:guid}/file", async (Guid id, HttpContext ctx) =>
         {
+            var original = await NasReferenceEndpoints.RedirectLegacy(connectionString, ctx, id);
+            if (original is not null) return original;
             await using var conn = new NpgsqlConnection(connectionString);
             await conn.OpenAsync();
 

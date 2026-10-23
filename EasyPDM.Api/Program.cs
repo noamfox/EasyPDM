@@ -105,6 +105,16 @@ var browserBridgeTicketStore = new BrowserBridgeTicketStore();
 var transferProgressStore = new TransferProgressStore();
 var cadRequestStore = new CadRequestStore();
 
+// Reference-only pilot: uploads and storage moves cannot create local source copies.
+app.Use(async (ctx, next) => {
+ if (NasReferenceEndpoints.Enabled && ctx.Request.Path.StartsWithSegments("/api") &&
+     (ctx.Request.HasFormContentType || ctx.Request.Path.Value!.EndsWith("/attachments/register", StringComparison.Ordinal) || ctx.Request.Path == "/api/settings/storage/move" ||
+      (ctx.Request.Method == "DELETE" && ctx.Request.Path.StartsWithSegments("/api/attachments")))) {
+  ctx.Response.StatusCode=409; await ctx.Response.WriteAsync("NAS reference mode: link an indexed original; uploads, legacy deletion and storage moves are disabled."); return;
+ }
+ await next();
+});
+app.MapNasReferenceEndpoints(connectionString);
 app.MapAuthEndpoints(connectionString, browserBridgeTicketStore);
 app.MapUserEndpoints(connectionString);
 app.MapProjectEndpoints(connectionString);
